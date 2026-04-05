@@ -51,3 +51,7 @@
 ## Summary:
 
 *Each virtual address space contains all of a program’s instructions and data, which can be referenced by the program via virtual addresses. The OS, with some serious hardware help, will take each of these virtual memory references and turn them into physical addresses* \
+
+
+# p-set:
+
