@@ -1,3 +1,21 @@
+## Project Design and Architecture
+
+![alt text](glibc_arch.png)
+
+- Memory allocation/de-allocation between process and glibC can happen
+for any arbitrary size. \
+
+- Memory allocation and de-allocation b/w glibC and kernel MMU happens only in units of system's configured Page Size. \
+
+- As Syscalls like sbrk/mmap are expensive, glibC caches the VM page allocated by the kernel MMU and allocates small chunks out of it to the 
+userspace process on need-basis. \
+
+- When glibC detecs that the userspace process has freed all the memory in a given VM page, glibC returns the page back to the kernel MMU using syscalls like sbrk/munmap. \
+
+- The aim is to replace this glibC memory manager with a custom memory manager, as shown below: \
+
+![alt text](xmalloc_arch.png)
+
 ## Functionality 1: Virtual Memory Page Allocation/De-allocation
 
 - Size of VM page is ~4KB to 8KB on most modern systems, we usually use library calls like malloc/calloc to allocate dynamic memory in our programs. \

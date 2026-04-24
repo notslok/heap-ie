@@ -43,3 +43,19 @@ mm_return_vm_page_to_kernel (void* vm_page, int units) {
         printf("Error: VM page de-allocation failed\n");
     }
 }
+
+
+int
+main(int argc, char **argv){
+    mm_init();
+
+    printf("VM Page Size = %lu\n", SYSTEM_PAGE_SIZE);
+    void *addr1 = mm_get_new_vm_page_from_kernel(1);
+    void *addr2 = mm_get_new_vm_page_from_kernel(1);
+    printf("page 1 addr = %p,, page 2 addr = %p\n", addr1, addr2); // in c %p specifier is used to format pointer holding memory address
+    
+    // If page 1 and page 2 are allocation in contiguous fashion this diff. should
+    // be equal to the page size used by the system
+    printf("difference in page 1 addr and page 2 addr: %ld\n", (long int)addr1 - (long int)addr2);
+    return 0;
+}
