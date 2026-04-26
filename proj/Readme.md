@@ -1,3 +1,21 @@
+## Project Design and Architecture
+
+![alt text](glibc_arch.png)
+
+- Memory allocation/de-allocation between process and glibC can happen
+for any arbitrary size. \
+
+- Memory allocation and de-allocation b/w glibC and kernel MMU happens only in units of system's configured Page Size. \
+
+- As Syscalls like sbrk/mmap are expensive, glibC caches the VM page allocated by the kernel MMU and allocates small chunks out of it to the 
+userspace process on need-basis. \
+
+- When glibC detecs that the userspace process has freed all the memory in a given VM page, glibC returns the page back to the kernel MMU using syscalls like sbrk/munmap. \
+
+- The aim is to replace this glibC memory manager with a custom memory manager, as shown below: \
+
+![alt text](xmalloc_arch.png)
+
 ## Functionality 1: Virtual Memory Page Allocation/De-allocation
 
 - Size of VM page is ~4KB to 8KB on most modern systems, we usually use library calls like malloc/calloc to allocate dynamic memory in our programs. \
@@ -61,4 +79,80 @@ mm_get_new_vm_page_from_kernel (int units);
 
 static void*
 mm_return_vm_page_to_kernel (void *vm_page, int units); 
+```
+
+## Functionality 2: Page Family Registration
+
+- During initilization the User Space application tells the LMM (on which relying for memory allocation/de-allocation), about the structures its using. \
+
+- Thhis step is essential for LMM as it needs to know the size of each structure, in order to allocate appropriate amount of memory when userspace application requests for it. \
+
+![page family registration](pg_fam_reg1.png)
+
+- LMM stores application structure info i.e. \ 
+
+```
+{
+    <Name of the struct>,
+    <size of struct>
+}
+```
+
+**to store these info LMM uses the VM pagesrequested from kernel specifically to store registration info.** \
+
+
+### Page Family Data Structures
+
+1) LMM reuests VM page(s) from the kernel to store registration info, consisting of : \
+
+```
+struct vm_page_family_t {
+    <Structure name>,
+    <Structure size>
+}
+```
+
+2) VM pages stores the page families, starting from bottom to top, in a contiguous fashion. \
+
+3) VM pages used to store page families are called **"VM pages for Families"** (vm_pages_for_families_t) \
+
+4) If LMM needs more VM pages to store more application's page family, it can always request for more VM pages from the kernel.
+
+5) Multiple VM pages for families are linked together as a linked list, and is **accessible through the latest one - the head.** \
+
+![page family linked list](page_fam_ll.png)
+
+
+```
+/*
+    [[ vm_page_families_t ]]
+    (each node represents one 
+    entire VM page allocated 
+    for page family registration)
+            |
+            |
+      <encapsulates>
+            |
+            |
+            V
+    [[ vm_page_family_t]]
+     (contains all the struct name and size info indexed into array, once it fills up the current VM page, new VM page needs to be requested by LMM for info registration of leftover structs in the application)
+*/
+
+
+typedef struct vm_page_family_ {
+
+    char struct_name [MM_MAX_STRUCT NAME];
+    uint32_t struct_size;
+
+} vm_page_family_t;
+
+
+typedef struct vm_page_families_ {
+
+    struct vm_page_families_* next;
+    vm_page_family_t vm_page_family[0];
+
+} vm_page_families_t;
+
 ```
