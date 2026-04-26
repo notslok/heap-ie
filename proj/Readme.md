@@ -156,3 +156,44 @@ typedef struct vm_page_families_ {
 } vm_page_families_t;
 
 ```
+
+### Page Family Instantiati on
+
+-  These family of APIs deal with how application process is going to report page family info to the LMM? \
+
+Using following API Userspace application can perform family registration with LMM:    \
+
+```
+mm_instantiate_new_page_family ("person_t", sizeof(person_t));
+```
+
+### Page family instantiation Algorithm
+
+```
+
+/* Global variable pointing to the head */
+static vm_page_for_families_t* first_vm_page_for_families = NULL;
+
+
+/* ALGORITHM: */
+
+void mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
+
+    1. Create a new "vm_page_family_t" from args.
+    
+    2. If LMM has not taken its first "vm_page_for_families_t" VM page,
+       allocate one from the kernel, update "first_vm_page_for_families" global pointer.
+    
+    3. check if new "vm_page_family_t" can be accomodated info "first_vm_page_for_families" VM page :
+
+        3a. YES -> then insert new "vm_page_family_t" entry into
+            "first_vm_page_for families" [END]
+        3b. NO -> allocate new VM page from the kernel, update linked list
+            and update "first_vm_page_fro_families" ptr to point to the most
+            recent allicated VM page.
+    
+    4. Insert new "vm_page_family_t" into current "first_vm_page_for_families" 
+        VM page and link the older "first_vm_page_for_families" to the current one using the *next pointer.
+}
+
+```
