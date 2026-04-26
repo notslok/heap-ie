@@ -184,7 +184,7 @@ void mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
     2. If LMM has not taken its first "vm_page_for_families_t" VM page,
        allocate one from the kernel, update "first_vm_page_for_families" global pointer.
     
-    3. check if new "vm_page_family_t" can be accomodated info "first_vm_page_for_families" VM page :
+    3. check if new "vm_page_family_t" can be accomodated into "first_vm_page_for_families" VM page :
 
         3a. YES -> then insert new "vm_page_family_t" entry into
             "first_vm_page_for families" [END]

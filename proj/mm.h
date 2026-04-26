@@ -1,3 +1,8 @@
+#ifndef MM_H
+#define MM_H
+
+#define MM_MAX_STRUCT_NAME 256
+
 typedef struct vm_page_family_ {
 
     char struct_name[MM_MAX_STRUCT_NAME];
@@ -24,7 +29,7 @@ typedef struct vm_page_for_families_ {
 Looping macro to iterate over all page families (vm_page_family_t) objects
 stored in a VM page (vm_page_for_families_t) in bottom-up fashion
 */
-#define ITERATE_PAGE_FAMILIES_BEGIN(vm_page_for_families_ptr, curr) \
+#define ITERATE_PAGE_FAMILIES_BEGIN(vm_page_for_families_ptr, curr) {\
 // {
 //     vm_page_family_t* curr = vm_page_for_families_ptr->vm_page_family[0];
 //     uint32_t in_page_family_count = 0;
@@ -43,9 +48,10 @@ stored in a VM page (vm_page_for_families_t) in bottom-up fashion
         check if vm_page_family_t exist by checking its size  && check if curr has iterated all the family entries;
         increment the curr ptr towards next family entry, also increment the in_page_family counter)
 */
-{                                                                                                   \
     for(vm_page_family_t* curr = (vm_page_family_t*)vm_page_for_families_ptr->vm_page_family[0];    \
         curr->struct_size && in_page_family_count < MAX_FAMILIES_PER_VM_PAGE;                       \
         curr++, in_page_family_count++) {                                                           \
 
 #define ITERATE_PAGE_FAMILIES_END(vm_page_for_families_ptr, curr)}} \
+
+#endif
