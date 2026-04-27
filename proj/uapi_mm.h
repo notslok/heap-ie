@@ -9,7 +9,12 @@ mm_init();
 
 /* new page family entry init */
 // void
-// mm_instantiate_new_page_family (char*, uint32_t); 
+// mm_instantiate_new_page_family (char*, uint32_t); ---> MUST BE PRIVATE API
+
+
+/* Prints out all the registered family name and corresponding size */
+void
+mm_print_registered_page_families();
 
 
 /* Registration Function */

@@ -10,8 +10,81 @@
 static size_t SYSTEM_PAGE_SIZE = 0;
 static vm_page_for_families_t* first_vm_page_for_families = NULL;
 
-void mm_init() {
+void 
+mm_init() {
     SYSTEM_PAGE_SIZE = getpagesize();
+}
+
+
+/* Prints out all the registered family name and corresponding size */
+void
+mm_print_registered_page_families() {
+
+    /* Check if there exists an allocated VM page */
+    if(!first_vm_page_for_families){
+        printf("[INFO] No VM page allocated for the LMM, yet!\n");
+        return;
+    }
+
+    
+    /* If there is/are allocated VM page - select them one by one for iteration */
+    vm_page_for_families_t* vm_page_iterator = first_vm_page_for_families;
+
+    ITERATE_VM_PAGE_BEGIN(vm_page_iterator) {
+        
+        /* Iterate over the page families inside current VM page */
+        vm_page_family_t* vm_page_family_curr = NULL;
+
+        ITERATE_PAGE_FAMILIES_BEGIN(vm_page_iterator, vm_page_family_curr) {
+
+            printf("Page Family: %s, Size = %u\n", 
+                    vm_page_family_curr->struct_name,
+                    vm_page_family_curr->struct_size);
+
+        } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr)
+
+    } ITERATE_VM_PAGE_END(vm_page_iterator)
+}
+
+
+/* 
+    Iterates over *all VM pages* hosting page families (vm_page_for_families_t), 
+    and returns the pointer to the page family object identified by struct_name passed as an argument 
+*/
+vm_page_family_t*
+lookup_page_family_by_name(char* struct_name) {
+    
+    /* Check if there exists an allocated VM page */
+    if(!first_vm_page_for_families){
+        printf("[INFO] No VM page allocated for the LMM, yet!\n");
+        return NULL;
+    }
+
+    /* If there is/are allocated VM page - select them one by one for iteration */
+    vm_page_for_families_t* vm_page_iterator = first_vm_page_for_families;
+
+    ITERATE_VM_PAGE_BEGIN(vm_page_iterator) {
+        
+        /* Iterate over the page families inside current VM page */
+        vm_page_family_t* vm_page_family_curr = NULL;
+
+        ITERATE_PAGE_FAMILIES_BEGIN(vm_page_iterator, vm_page_family_curr) {
+
+            if(strncmp(vm_page_family_curr->struct_name,
+                        struct_name, MM_MAX_STRUCT_NAME) == 0) {
+
+                printf("[INFO] Family with name: %s found @ address: %p\n", 
+                    vm_page_family_curr->struct_name, vm_page_family_curr);
+
+                return vm_page_family_curr;
+            }
+
+        } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr)
+
+    } ITERATE_VM_PAGE_END(vm_page_iterator)
+
+    printf("[INFO] No family with name: %s found!\n", struct_name);
+    return NULL;
 }
 
 

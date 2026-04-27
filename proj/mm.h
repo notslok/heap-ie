@@ -22,6 +22,14 @@ typedef struct vm_page_for_families_ {
 } vm_page_for_families_t;
 
 
+/* 
+    Iterates over *all VM pages* hosting page families (vm_page_for_families_t), 
+    and returns the pointer to the page family object identified by struct_name passed as an argument 
+*/
+struct vm_page_family_*
+lookup_page_family_by_name(char* struct_name);
+
+
 /* (Total system page size - size of next pointer) / (size of one page family entry)*/
 #define MAX_FAMILIES_PER_VM_PAGE    \
     (SYSTEM_PAGE_SIZE - sizeof(vm_page_for_families_t *)) / (sizeof(vm_page_family_t))
@@ -45,6 +53,19 @@ stored in a VM page (vm_page_for_families_t) in bottom-up fashion
         curr->struct_size && _in_page_family_count < MAX_FAMILIES_PER_VM_PAGE;     \
         curr++, _in_page_family_count++) {                                         \
 
-#define ITERATE_PAGE_FAMILIES_END(vm_page_for_families_ptr, curr)}} \
+#define ITERATE_PAGE_FAMILIES_END(vm_page_for_families_ptr, curr)}}                \
+
+
+/*
+Looping macro to iterate over nodes of vm_page_for_families_t linked list in allocated VM Pages
+*/
+#define ITERATE_VM_PAGE_BEGIN(vm_page_iterator)            \
+{                                                          \
+    for(;                                                  \
+        vm_page_iterator!=NULL;                            \
+        vm_page_iterator = vm_page_iterator->next){        \
+
+#define ITERATE_VM_PAGE_END(vm_page_iterator)}}            \
+
 
 #endif
