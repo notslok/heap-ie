@@ -8,8 +8,8 @@ void
 mm_init();
 
 /* new page family entry init */
-void
-mm_instantiate_new_page_family (char*, uint32_t); 
+// void
+// mm_instantiate_new_page_family (char*, uint32_t); 
 
 
 /* Registration Function */
