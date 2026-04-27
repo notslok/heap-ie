@@ -1,6 +1,6 @@
 ## Project Design and Architecture
 
-![alt text](glibc_arch.png)
+![alt text](assets/aglibc_arch.png)
 
 - Memory allocation/de-allocation between process and glibC can happen
 for any arbitrary size. \
@@ -14,17 +14,17 @@ userspace process on need-basis. \
 
 - The aim is to replace this glibC memory manager with a custom memory manager, as shown below: \
 
-![alt text](xmalloc_arch.png)
+![alt text](assets/xmalloc_arch.png)
 
 ## Functionality 1: Virtual Memory Page Allocation/De-allocation
 
 - Size of VM page is ~4KB to 8KB on most modern systems, we usually use library calls like malloc/calloc to allocate dynamic memory in our programs. \
 
-![Allocation flow](alloc.png)
+![Allocation flow](assets/alloc.png)
 
 - In linux there are two primary sets of syscalls usesd to allocate/deallocate VM blocks from the OS by running process: \
 
-![memory allocation syscalls](alloc_syscalls.png)
+![memory allocation syscalls](assets/alloc_syscalls.png)
 
 -  All the standard glibC memory management functions  like: malloc, free, realloc, calloc etc invoke one of the above syscalls. \
 
@@ -35,7 +35,7 @@ userspace process on need-basis. \
 
 ### mmap() System call
 
-![mmap() syscall behaiopr](mmap_syscall.png)
+![mmap() syscall behaiopr](assets/mmap_syscall.png)
 
 - In our **Linux Memory Manager(LMM)** -> a usersapce process, it is assigned a complete VM page on request, whereupon the LMM can further split the assigned page to meet the memory requirements. \
 
@@ -87,7 +87,7 @@ mm_return_vm_page_to_kernel (void *vm_page, int units);
 
 - Thhis step is essential for LMM as it needs to know the size of each structure, in order to allocate appropriate amount of memory when userspace application requests for it. \
 
-![page family registration](pg_fam_reg1.png)
+![page family registration](assets/pg_fam_reg1.png)
 
 - LMM stores application structure info i.e. \ 
 
@@ -120,7 +120,7 @@ struct vm_page_family_t {
 
 5) Multiple VM pages for families are linked together as a linked list, and is **accessible through the latest one - the head.** \
 
-![page family linked list](page_fam_ll.png)
+![page family linked list](assets/page_fam_ll.png)
 
 
 ```
@@ -197,3 +197,10 @@ void mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
 }
 
 ```
+
+### Exposing public LMM APIs
+
+![uapi_mm.h]](assets/uapi.png)
+
+- **uapi_mm.h** will provide publicly exposed structs and API of the custom LMM through header file. \
+- uapi_mm.h is an interface betweenLMM lib and application. It provides public APIs like mm_init() and macros like MM_REG_STRUCT() etc. \

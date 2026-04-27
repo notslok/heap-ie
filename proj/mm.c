@@ -1,10 +1,10 @@
+#include "mm.h"
 #include <stdio.h>
 #include <memory.h>
 #include <unistd.h>     /* for getpagesize() */
 #include <sys/mman.h>   /* for using mmap() */
 #include <assert.h>
 #include <stdint.h>
-#include "mm.h"
 
 
 static size_t SYSTEM_PAGE_SIZE = 0;
@@ -48,7 +48,7 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
     vm_page_for_families_t* new_vm_page_for_families = NULL;
 
     if(struct_size > SYSTEM_PAGE_SIZE){
-        printf("Error: 5s() Structure %s Size eceeds system page size\n",
+        printf("Error: %s() Structure %s Size eceeds system page size\n",
                 __FUNCTION__, struct_name);
         return;
     }
@@ -61,11 +61,14 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
     if(!first_vm_page_for_families) { // that means very first registration is taking place
         first_vm_page_for_families = (vm_page_for_families_t*)mm_get_new_vm_page_from_kernel(1);
         first_vm_page_for_families->next = NULL;
-
         // instantiate the first family entry's value
-        strncpy(first_vm_page_for_families->vm_page_family[0]->struct_name, 
-                struct_name, MM_MAX_STRUCT_NAME);
-        first_vm_page_for_families->vm_page_family[0]->struct_size = struct_size;
+        strncpy(first_vm_page_for_families->vm_page_family[0].struct_name, 
+            struct_name, MM_MAX_STRUCT_NAME);
+
+        first_vm_page_for_families->vm_page_family[0].struct_size = struct_size;
+
+        return;
+    }
 
     /*
         STEP 3:
@@ -75,13 +78,14 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
 
         ITERATE_PAGE_FAMILIES_BEGIN (first_vm_page_for_families, vm_page_family_curr) {
 
+            // printf("[DEBUG] %s\n", vm_page_family_curr->struct_name);
             // check if a family with same struct_name has been registered before (?)
-            if(strcmp(vm_page_family_curr->struct_name,
+            if(strncmp(vm_page_family_curr->struct_name,
                     struct_name, MM_MAX_STRUCT_NAME) != 0){
                 in_page_family_count++;
                 continue;            
             }
-
+            // printf("[DEBUG] %s\n", vm_page_family_curr->struct_name);
             // deliberately fail because same family can't be registered twice
             assert(0);
 
@@ -108,7 +112,7 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
         vm_page_family_curr->struct_size = struct_size;
 
         return;
-    }
+    // }
 }
 
 
