@@ -106,13 +106,9 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111[[!!!USE OFFSET FIELD!!!]]
 // Macro to obtain the start address of a VM page, on being 
 // given any pointer pointing to the start of the meta block
-#define MM_GET_PAGE_FROM_META_BLOCK(block_meta_data_ptr)            \
-        block_meta_data_t iterator = block_meta_data_ptr;           \
-        while(iterator->prev_block) {                               \
-            iterator = iterator->prev_block;                        \
-        }                                                           \
-                                                                    \
-        return iterator; // points to the start of VM page itself   \
+#define MM_GET_PAGE_FROM_META_BLOCK(block_meta_data_ptr)                 \
+((void*)((char*)(block_meta_data_ptr) - block_meta_data_ptr->offset))    \
+
 
 // Returns pointer pointing to the start of next meta block's
 // starting i.e. Towards higher address. 
