@@ -1,6 +1,6 @@
 ## Project Design and Architecture
 
-![alt text](assets/aglibc_arch.png)
+![alt text](assets/glibc_arch.png)
 
 - Memory allocation/de-allocation between process and glibC can happen
 for any arbitrary size. \
