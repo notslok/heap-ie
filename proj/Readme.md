@@ -16,6 +16,9 @@ userspace process on need-basis. \
 
 ![alt text](assets/xmalloc_arch.png)
 
+
+***
+
 ## Functionality 1: Virtual Memory Page Allocation/De-allocation
 
 - Size of VM page is ~4KB to 8KB on most modern systems, we usually use library calls like malloc/calloc to allocate dynamic memory in our programs. \
@@ -80,6 +83,8 @@ mm_get_new_vm_page_from_kernel (int units);
 static void*
 mm_return_vm_page_to_kernel (void *vm_page, int units); 
 ```
+
+***
 
 ## Functionality 2: Page Family Registration
 
@@ -157,7 +162,7 @@ typedef struct vm_page_families_ {
 
 ```
 
-### Page Family Instantiati on
+### Page Family Instantiation
 
 -  These family of APIs deal with how application process is going to report page family info to the LMM? \
 
@@ -204,3 +209,46 @@ void mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
 
 - **uapi_mm.h** will provide publicly exposed structs and API of the custom LMM through header file. \
 - uapi_mm.h is an interface betweenLMM lib and application. It provides public APIs like mm_init() and macros like MM_REG_STRUCT() etc. \
+
+
+***
+
+## Functionality 3: Meta and Data Blocks
+
+- Meta blocks store the metadata of its corresponding data-blocks and maintain a chain of free and allocated blocks. \
+
+- Data block is the chunk of VM page which is given to the user application for use, these applications aren't aware of corresponding Meta blocks. \
+
+- A block whether allocated or freed is guarded by its Meta block. \
+
+![Meta and Data Block layout](assets/meta_data_blocks.png)
+
+- **The LMM will be dealing with two classes of VM pages now, one dealing with storage of struct/family registration data and other dealing with the sorage of the userspace app's dynamically allocated concrete data.**
+
+
+### Meta and Data Block structure
+
+![Data VM page layout](assets/data_vm_page_layout.png)
+
+![meta block offset chart](assets/meta_block_offset_chart.png)
+
+```
+typedef struct block_meta_data_ {
+
+    /* [4 bytes] Is the corresponding Data block Free or Allocated? */
+    vm_bool_t is_free;
+    
+    /* [4 bytes] Size of the corresponding Data Block */
+    uint32_t block_size;
+
+    /* [8 bytes] ptr to the next meta block - downward in Data VM page */
+    struct block_meta_data_* prev_block;
+
+    /* [8 bytes] ptr to the next meta block - upward in Data VM page */
+    struct block_meta_data_* next_block;
+
+    /* [4 bytes] Offset of this data block w.r.t the start of this VM page */
+    uint32_t offset;
+    
+} block_meta_data_t;    // Total size of meta_block_data = 4+4+8+8+4 = [28 bytes]
+```

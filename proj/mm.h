@@ -1,10 +1,16 @@
-#ifndef MM_H
-#define MM_H
+#ifndef __MM_H__
+#define __MM_H__
 
 #include <stddef.h> /*for size_t*/
 #include <stdint.h>
 
 #define MM_MAX_STRUCT_NAME 32
+#define SIZEOF_META_DATA_BLOCK 28 // bytes
+
+typedef enum {
+    MM_FALSE,
+    MM_TRUE
+} vm_bool_t;
 
 typedef struct vm_page_family_ {
 
@@ -20,6 +26,26 @@ typedef struct vm_page_for_families_ {
     vm_page_family_t vm_page_family[0];
 
 } vm_page_for_families_t;
+
+
+typedef struct block_meta_data_ {
+
+    /* [4 bytes] Is the corresponding Data block Free or Allocated? */
+    vm_bool_t is_free;
+    
+    /* [4 bytes] Size of the corresponding Data Block */
+    uint32_t block_size;
+
+    /* [8 bytes] ptr to the next meta block - downward in Data VM page */
+    struct block_meta_data_* prev_block;
+
+    /* [8 bytes] ptr to the next meta block - upward in Data VM page */
+    struct block_meta_data_* next_block;
+
+    /* [4 bytes] Offset of this data block w.r.t the start of this VM page */
+    uint32_t offset;
+    
+} block_meta_data_t;
 
 
 /* 
@@ -68,4 +94,54 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 #define ITERATE_VM_PAGE_END(vm_page_iterator)}}            \
 
 
-#endif
+/* 
+    Meta Block and Data Block related Macros 
+*/
+
+// Generic macro to obtain offset of any field in a structure
+#define offset_of(container_structure, field_name)          \
+        ((size_t)(&(container_structure*)NULL->field_name)) \
+
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111[[!!!USE OFFSET FIELD!!!]]
+// Macro to obtain the start address of a VM page, on being 
+// given any pointer pointing to the start of the meta block
+#define MM_GET_PAGE_FROM_META_BLOCK(block_meta_data_ptr)            \
+        block_meta_data_t iterator = block_meta_data_ptr;           \
+        while(iterator->prev_block) {                               \
+            iterator = iterator->prev_block;                        \
+        }                                                           \
+                                                                    \
+        return iterator; // points to the start of VM page itself   \
+
+// Returns pointer pointing to the start of next meta block's
+// starting i.e. Towards higher address. 
+#define NEXT_META_BLOCK(block_meta_data_ptr)                \
+        if(!block_meta_data_ptr->next_block){               \
+            printf("[INFO] Pointer already pointing to the last meta block in the VM page!\n");     \
+        }                                                   \
+        (block_meta_data_ptr->next_block;)                  \
+
+        
+// Returns pointer pointing to the start of next meta block's
+// starting i.e. Towards higher address. BUT this macro leverages
+// the block_size attribute AND NOT the _next_block pointer
+/* STEPS: */
+// first get to the start of data block using (block_meta_data_ptr+1)
+// then conver to typecast to char* which is 1 byte long and jump
+// by block_meta_data_ptr->block_size bytes to get to the end of data block 
+// then typecast back to block_meta_data_ptr*
+#define NEXT_META_BLOCK_BY_SIZE(block_meta_data_ptr)                    \
+        (block_meta_data_ptr*)((char*)(block_meta_data_ptr+1)           \
+        + block_meta_data_ptr->block_size)                              \
+         
+
+// Returns pointer pointing to the start of preveious meta block's
+// starting i.e. Towards lower address.
+#define PREV_META_BLOCK(block_meta_data_ptr)                \
+        if(!block_meta_data_ptr->prev_block){               \
+            printf("[INFO] Pointer already pointing to the first meta block in the VM page!\n");    \
+        }                                                   \
+        (block_meta_data_ptr->prev_block;)                  \
+
+#endif /* __MM_H__ */
