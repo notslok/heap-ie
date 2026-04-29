@@ -308,19 +308,19 @@ Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the b
             ^
             |
             v
-    (prev= 2048, next= NULL) ---------------> [MB3]
+    (prev= 2144*, next= NULL) ---------------> [MB3]
             ^
             |
             v
-    (prev= 2096, next= ) ---------------> [MB2]**
+    (prev= 2096*, next= 2476) ---------------> [MB2]**
             ^
             |
             v
-    (prev= 2048, next= 2144) ---------------> [MB21]**
+    (prev= 2048*, next= 2144*) ---------------> [MB21]**
             ^
             |
             v
-    (prev= 2000, next= 2096) ---------------> [MB22]**
+    (prev= 2000*, next= 2096*) ---------------> [MB22]**
             ^
             |
             v
