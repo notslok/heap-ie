@@ -267,12 +267,9 @@ typedef struct block_meta_data_ {
 
 ![Pointer addjustment on Block Split](assets/block_split_ptr_adjustment.png)
 
-![Block Merging](block_merge.png)
+![Block Merging](assets/block_merge.png)
 
-![Block_merge_2](block_merge_2.png)
-
-***
-
+![Block_merge_2](assets/block_merge_2.png)
 
 
 ***
@@ -327,3 +324,80 @@ Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the b
 ```
 
 ***
+
+## Functionality 5: Virtual Memory Page Management
+
+![Virtual memory Management](assets/Virtual_memory_Management.png)
+
+- "How will the custom LMM - Manage Virtual memory Pages ?" \
+- When LMM needs to perform following (possible)actions by interacting with kernel: \
+
+```
+-> Allocation of Data block 
+-> Deallocation od Data block
+-> If current page is completely free, return back to kernel (munmap)
+-> If current page is completely exhausted, allocate new VM page (mmap)
+-> Maintain and arrange collection of VM pages in use.
+-> Collect certain statistics
+```
+
+- A data structure is needed in order to facilitate LMM with ability to manipulate/organize Data VM pages. \
+
+- For the same purpose, a data structure like **vm_page_t** is needed. \
+
+-  **First change** - addition of **first_page** pointer in **vm_page_for_families_t**: \
+
+![vm_page_for_families_t modification](assets/vm_page_for_families_t_modification.png)
+
+**first_page** points to the latest Data VM page daded to the VM page linked list. \
+
+```
+    typedef struct vm_page_for_families_ {
+
+        struct vm_page_for_families_* next;
+        vm_page_family_t vm_page_family[0];
+        vm_page_t* first_page; // <--------> pointer to User defined data structure to represent a single unit of VM page
+
+    } vm_page_for_families_t;
+```
+
+- **Second change** - addition of new data struct **vm_page_t** to represent a VM page itself: \
+
+![vm_page_t struct](assets/vm_page_t_struct.png)
+
+```
+// Data structure to organize allocated VM pages into doubly linked list
+    typedef struct vm_page_{
+
+        /* pointer to the next data vm page */
+        struct vm_page_* next;
+        
+        /* pointer to the previous data vm page */
+        struct vm_page_* prev;
+
+        /* back pointer to page family entry in page families vm page */
+        struct vm_page_family_* pg_family;
+    } vm_page_t;
+```
+
+![New mental picure of VM page for family and data](assets/vm_page_mental_picture.png)
+
+```
+    // Data structure to organize allocated VM pages into doubly linked list
+    typedef struct vm_page_{
+
+        /* pointer to the next data vm page */
+        struct vm_page_* next;
+        
+        /* pointer to the previous data vm page */
+        struct vm_page_* prev;
+
+        /* back pointer to page family entry in page families vm page */
+        struct vm_page_family_* pg_family;
+
+
+        /**/
+        block_meta_data_t block_meta_data;
+        char page_memory[0]; /* First Data Block in VM page */
+    } vm_page_t;
+```
