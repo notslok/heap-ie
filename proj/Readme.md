@@ -269,6 +269,8 @@ typedef struct block_meta_data_ {
 
 ![Block Merging](block_merge.png)
 
+![Block_merge_2](block_merge_2.png)
+
 ***
 
 

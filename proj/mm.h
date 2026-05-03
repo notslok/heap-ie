@@ -172,25 +172,25 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
     for(block_iterator = first_meta_block;                  \
         block_iterator->next_block != NULL;                 \
         block_iterator = block_iterator->next_block){       \
-                                                                        \
-            if(block_iterator->is_free){                                \
-                ++free_block_count;                                     \
-                if(max_free_blk_size < block_iterator->block_size){     \
-                    max_free_blk_size =  block_iterator->block_size;    \
-                    biggest_free_blk_addr = (uintptr_t)&block_iterator;  \
-                }                                                       \
-            } else {                                                    \
-                ++allocated_block_count;                                \
-                if(max_alloc_blk_size < block_iterator->block_size){    \
-                    max_alloc_blk_size =  block_iterator->block_size;   \
-                    biggest_alloc_blk_addr = (uintptr_t)&block_iterator; \
-                }                                                        \
-            }                                                            \               
-        if(block_iterator->prev_block != NULL &&                         \ 
-           block_iterator->prev_block->is_free &&                        \   
-           block_iterator->is_free)                                      \
-           assert(0);                                                    \
+                                                                            \
+            if(block_iterator->is_free){                                    \
+                ++free_block_count;                                         \
+                if(max_free_blk_size < block_iterator->block_size){         \
+                    max_free_blk_size =  block_iterator->block_size;        \
+                    biggest_free_blk_addr = (uintptr_t)&block_iterator;     \
+                }                                                           \
+            } else {                                                        \
+                ++allocated_block_count;                                    \
+                if(max_alloc_blk_size < block_iterator->block_size){        \
+                    max_alloc_blk_size =  block_iterator->block_size;       \
+                    biggest_alloc_blk_addr = (uintptr_t)&block_iterator;    \
+                }                                                           \
+            }                                                               \
+if(block_iterator->prev_block != NULL &&                            \
+           block_iterator->prev_block->is_free                      \
+           && block_iterator->is_free)                              \
+           assert(0);                                               \
 
-#define ITERATE_VM_PAGE_META_BLOCKS_END(first_meta_block)}}     \
+#define ITERATE_VM_PAGE_META_BLOCKS_END(first_meta_block)}}         \
 
 #endif /* __MM_H__ */
