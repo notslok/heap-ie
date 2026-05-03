@@ -72,8 +72,8 @@ stored in a VM page (vm_page_for_families_t) in bottom-up fashion
         check if vm_page_family_t exist by checking its size  && check if curr has iterated all the family entries;
         increment the curr ptr towards next family entry, also increment the in_page_family counter)
 */
-#define ITERATE_PAGE_FAMILIES_BEGIN(vm_page_for_families_ptr, curr)               \
-{                                                                                 \
+#define ITERATE_PAGE_FAMILIES_BEGIN(vm_page_for_families_ptr, curr)                \
+{                                                                                  \
     uint32_t _in_page_family_count = 0;                                            \
     for(curr = (vm_page_family_t*)&vm_page_for_families_ptr->vm_page_family[0];    \
         curr->struct_size && _in_page_family_count < MAX_FAMILIES_PER_VM_PAGE;     \
@@ -109,7 +109,6 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 #define MM_GET_PAGE_FROM_META_BLOCK(block_meta_data_ptr)                 \
 ((void*)((char*)(block_meta_data_ptr) - block_meta_data_ptr->offset))    \
 
-
 // Returns pointer pointing to the start of next meta block's
 // starting i.e. Towards higher address. 
 #define NEXT_META_BLOCK(block_meta_data_ptr)                \
@@ -139,5 +138,59 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
             printf("[INFO] Pointer already pointing to the first meta block in the VM page!\n");    \
         }                                                   \
         (block_meta_data_ptr->prev_block;)                  \
+
+// Macro to take the responsibility to update all P and N pointers of all meta blocks that needs an update.
+// first argument is pointer to meta block of allocated data block and 2nd argument is pointer to Meta block 
+// of free data block that is formed as a result of split.
+/*
+        STEPS:
+        1) Join the free block to the blocks in the higher memory side
+        2) Join the free block to the new allocated block, towards the lower memory side
+*/
+#define mm_bind_blocks_for_allocation(allocated_meta_block, free_meta_block)    \
+        free_meta_block->next_block = allocated_meta_block->next_block;         \
+        if(allocated_meta_block->next_block != NULL) {                          \
+            allocated_meta_block->next_block->prev_block-> free_meta_block;     \
+        }                                                                       \
+        free_meta_block->prev_block = allocated_meta_block;                     \
+        allocated_meta_block->next = free_meta_block;                           \
+
+
+// MACRO "for loop" which iterates over all meta blocks present in a VM page, 
+// from lower memory towards higher memory. The "first_meta_block" is a pointer
+// to the very fisrt meta_block in a VM page @ LA
+#define ITERATE_VM_PAGE_META_BLOCKS_BEGIN(first_meta_block)     \
+{                                                               \
+    uint32_t free_block_count = 0;                              \
+    uint32_t allocated_block_count = 0;                         \
+    uint32_t max_alloc_blk_size = 0;                            \
+    uint32_t max_free_blk_size = 0;                             \
+    uintptr_t biggest_alloc_blk_addr = 0;                       \
+    uintptr_t biggest_free_blk_addr = 0;                        \
+                                                                \
+    block_meta_data_t* block_iterator = NULL;               \
+    for(block_iterator = first_meta_block;                  \
+        block_iterator->next_block != NULL;                 \
+        block_iterator = block_iterator->next_block){       \
+                                                                            \
+            if(block_iterator->is_free){                                    \
+                ++free_block_count;                                         \
+                if(max_free_blk_size < block_iterator->block_size){         \
+                    max_free_blk_size =  block_iterator->block_size;        \
+                    biggest_free_blk_addr = (uintptr_t)&block_iterator;     \
+                }                                                           \
+            } else {                                                        \
+                ++allocated_block_count;                                    \
+                if(max_alloc_blk_size < block_iterator->block_size){        \
+                    max_alloc_blk_size =  block_iterator->block_size;       \
+                    biggest_alloc_blk_addr = (uintptr_t)&block_iterator;    \
+                }                                                           \
+            }                                                               \
+if(block_iterator->prev_block != NULL &&                            \
+           block_iterator->prev_block->is_free                      \
+           && block_iterator->is_free)                              \
+           assert(0);                                               \
+
+#define ITERATE_VM_PAGE_META_BLOCKS_END(first_meta_block)}}         \
 
 #endif /* __MM_H__ */

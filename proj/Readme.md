@@ -252,3 +252,78 @@ typedef struct block_meta_data_ {
     
 } block_meta_data_t;    // Total size of meta_block_data = 4+4+8+8+4 = [28 bytes]
 ```
+
+***
+
+## Functionality 4: Block Splitting and Merging
+
+![Block Splitting](assets/block_splitting.png)
+
+- For every malloc call made, a block is splitted into allocated block and remaining area is left as a smaller "free" block. \
+
+- If the VM page don't have free block to stisfy the malloc request, a new VM page is requested from the kernel and then split within it is performed. \
+
+- In short, "malloc()" results in block split AND "free()" results in block merge. \
+
+![Pointer addjustment on Block Split](assets/block_split_ptr_adjustment.png)
+
+![Block Merging](block_merge.png)
+
+![Block_merge_2](block_merge_2.png)
+
+***
+
+
+
+***
+
+### Assignment 3
+
+![Assignment 3](assets/assignment_3.png)
+
+Q1) What is the address of highest Byte in the VM page ? \
+>> (2000 + 4096) - 1 = 6,095 --> H.A limit
+
+Q2) Find the addresses of all P(rev) & N(ext) pointers for all meta blocks. \
+
+```
+        [6095] ---------> Higher Address
+            ^
+            |
+            v
+    (prev= 2048, next= NULL) ---------------> [MB3]
+            ^
+            |
+            v
+    (prev= 2000, next= 2476) ---------------> [MB2]
+            ^
+            |
+            v
+    (prev= NULL, next= 2048) ---------------> [MB1]
+        [2000] ---------> Lower Address
+```
+
+Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the block MB2 is chosen for Memory allocation. Find the new addresses of all P & N pointers for all meta blocks in VM page after allocation. Assume MB2 is split into MB21 (higher residual free block in Memory) and MB22 (lower allocated block in Memory). \
+
+```
+        [6095] ---------> Higher Address
+            ^
+            |
+            v
+    (prev= 2116*, next= NULL) ---------------> [MB3]
+            ^
+            |
+            v
+    (prev= 2068*, next= 2476*) ---------------> [MB21]** ----> [EMPTY]
+            ^
+            |
+            v
+    (prev= 2000*, next= 2116*) -----------> [MB22]** ---> [2*20 bytes data block]
+            ^
+            |
+            v
+    (prev= NULL, next= 2048) ---------------> [MB1]
+        [2000] ---------> Lower Address
+```
+
+***

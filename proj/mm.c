@@ -188,6 +188,21 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
     // }
 }
 
+/* API to perform block merge --> Refer to Block Merge diagram in Readme.md */
+static void
+mm_union_free_blocks
+(block_meta_data_t* first, block_meta_data_t* second){
+    // Check if both the blocks are marked to be freed
+    assert(first->is_free == MM_TRUE &&
+            second->is_free == MM_TRUE);
+    
+    first->block_size += sizeof(block_meta_data_t) + // size of meta block itself + data block size
+                         second->block_size;
+
+    first->next_block = second->next_block;
+    if(second->next_block != NULL)
+        second->next_block->prev_block = first;
+}
 
 /* API  to return a page back to the kernel */
 static void
