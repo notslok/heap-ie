@@ -280,7 +280,7 @@ typedef struct block_meta_data_ {
 ![Assignment 3](assets/assignment_3.png)
 
 Q1) What is the address of highest Byte in the VM page ? \
->> (2000 + 4096) - 1 = 6,095 
+>> (2000 + 4096) - 1 = 6,095 --> H.A limit
 
 Q2) Find the addresses of all P(rev) & N(ext) pointers for all meta blocks. \
 
@@ -308,19 +308,15 @@ Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the b
             ^
             |
             v
-    (prev= 2144*, next= NULL) ---------------> [MB3]
+    (prev= 2116*, next= NULL) ---------------> [MB3]
             ^
             |
             v
-    (prev= 2096*, next= 2476) ---------------> [MB2]**
+    (prev= 2068*, next= 2476*) ---------------> [MB21]** ----> [EMPTY]
             ^
             |
             v
-    (prev= 2048*, next= 2144*) ---------------> [MB21]**
-            ^
-            |
-            v
-    (prev= 2000*, next= 2096*) ---------------> [MB22]**
+    (prev= 2000*, next= 2116*) -----------> [MB22]** ---> [2*20 bytes data block]
             ^
             |
             v
