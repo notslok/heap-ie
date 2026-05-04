@@ -16,6 +16,7 @@ typedef struct vm_page_family_ {
 
     char struct_name[MM_MAX_STRUCT_NAME];
     uint32_t struct_size;
+    struct vm_page_* first_page; // <--------> pointer to User defined data structure to represent a single unit of VM page
 
 } vm_page_family_t;
 
@@ -24,6 +25,7 @@ typedef struct vm_page_for_families_ {
 
     struct vm_page_for_families_* next;
     vm_page_family_t vm_page_family[0];
+
 
 } vm_page_for_families_t;
 
@@ -46,6 +48,14 @@ typedef struct block_meta_data_ {
     uint32_t offset;
     
 } block_meta_data_t;
+
+typedef struct vm_page_{
+    struct vm_page_* next;
+    struct vm_page_* prev;
+    struct vm_page_family_* pg_family; /* back pointer to vm_page_for families_t entry */
+    block_meta_data_t block_meta_data;
+    char page_memory[0]; /* first data block in the VM page */
+} vm_page_t;
 
 
 /* 
@@ -77,7 +87,7 @@ stored in a VM page (vm_page_for_families_t) in bottom-up fashion
     uint32_t _in_page_family_count = 0;                                            \
     for(curr = (vm_page_family_t*)&vm_page_for_families_ptr->vm_page_family[0];    \
         curr->struct_size && _in_page_family_count < MAX_FAMILIES_PER_VM_PAGE;     \
-        curr++, _in_page_family_count++) {                                         \
+        curr++, _in_page_family_count++) {                                         
 
 #define ITERATE_PAGE_FAMILIES_END(vm_page_for_families_ptr, curr)}}                \
 
@@ -85,13 +95,13 @@ stored in a VM page (vm_page_for_families_t) in bottom-up fashion
 /*
 Looping macro to iterate over nodes of vm_page_for_families_t linked list in allocated VM Pages
 */
-#define ITERATE_VM_PAGE_BEGIN(vm_page_iterator)            \
+#define ITERATE_VM_FAMILY_PAGES_BEGIN(vm_page_iterator)            \
 {                                                          \
     for(;                                                  \
         vm_page_iterator!=NULL;                            \
         vm_page_iterator = vm_page_iterator->next){        \
 
-#define ITERATE_VM_PAGE_END(vm_page_iterator)}}            \
+#define ITERATE_VM_FAMILY_PAGES_END(vm_page_iterator)}}            \
 
 
 /* 
@@ -100,7 +110,7 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 
 // Generic macro to obtain offset of any field in a structure
 #define offset_of(container_structure, field_name)          \
-        ((size_t)(&(container_structure*)NULL->field_name)) \
+        ((size_t)&(((container_structure*)NULL)->field_name)) \
 
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111[[!!!USE OFFSET FIELD!!!]]
@@ -192,5 +202,49 @@ if(block_iterator->prev_block != NULL &&                            \
            assert(0);                                               \
 
 #define ITERATE_VM_PAGE_META_BLOCKS_END(first_meta_block)}}         \
+
+/* Macro to iterate over all the VM data pages */
+#define ITERATE_VM_PAGE_BEGIN(vm_page_family_ptr, curr) \
+{                                                       \
+    for(curr = vm_page_family_ptr;                      \
+        curr->next != NULL;                             \
+        curr = curr->next;){                            
+
+#define ITERATE_VM_PAGE_END(vm_page_family_ptr, curr)}} \
+
+/* Iterative macro to loop over all Meta blocks of a given VM Data type */
+#define ITERATE_VM_PAGE_ALL_BLOCKS_BEGIN(vm_page_ptr, curr)     \
+{                                                               \
+    for(curr = vm_page_ptr.block_meta_data;                     \
+        curr->next_block != NULL;                               \
+        curr = curr->next_block){                               \
+    
+#define ITERATE_VM_PAGE_ALL_BLOCKS_END(vm_page_ptr, curr)}}     \
+
+
+/* Return MM_TRUE if VM_Page has no data block assigned to
+the application, else return MM_FALSE */
+vm_bool_t
+mm_is_vm_page_empty(vm_page_t* vm_page);
+
+
+/* Write a macro which marks VM data page as empty */
+#define MARK_VM_PAGE_EMPTY(vm_page_t_ptr)                      \
+    vm_page_t_ptr->block_meta_data.is_free = MM_TRUE;          \
+    vm_page_t_ptr->block_meta_data.prev_block = NULL;          \
+    vm_page_t_ptr->block_meta_data.next_block = NULL;          \
+    // vm_page_t_ptr->block_meta_data.offset = 0;                 
+    // vm_page_t_ptr->block_meta_data.block_size = SYSTEM_PAGE_SIZE -                          \
+    //                                                 offset_of(block_meta_data_t, offset) -  \
+    //                                                 offset_of(vm_page_t, page_memory);      \
+
+/* API to allocate new data VM page for a family */
+vm_page_t*
+allocate_vm_page(vm_page_family_t* vm_page_family);
+
+
+/* API to deallocate and free( i.e. return back to kernel) an allocated empty VM data page */
+void
+mm_vm_page_delete_and_free(vm_page_t* vm_page);
 
 #endif /* __MM_H__ */

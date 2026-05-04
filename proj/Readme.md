@@ -347,18 +347,18 @@ Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the b
 
 -  **First change** - addition of **first_page** pointer in **vm_page_for_families_t**: \
 
-![vm_page_for_families_t modification](assets/vm_page_for_families_t_modification.png)
+![vm_page_family_t modification](assets/vm_page_family_t_modification.png)
 
 **first_page** points to the latest Data VM page daded to the VM page linked list. \
 
 ```
-    typedef struct vm_page_for_families_ {
+typedef struct vm_page_family_ {
 
-        struct vm_page_for_families_* next;
-        vm_page_family_t vm_page_family[0];
-        vm_page_t* first_page; // <--------> pointer to User defined data structure to represent a single unit of VM page
+    char struct_name[MM_MAX_STRUCT_NAME];
+    uint32_t struct_size;
+    vm_page_t* first_page; // <--------> pointer to User defined data structure to represent a single unit of VM page
 
-    } vm_page_for_families_t;
+} vm_page_family_t;
 ```
 
 - **Second change** - addition of new data struct **vm_page_t** to represent a VM page itself: \
@@ -401,3 +401,19 @@ Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the b
         char page_memory[0]; /* First Data Block in VM page */
     } vm_page_t;
 ```
+
+
+### APIs for VM Data Page Management:
+
+![vm_data_page_api_1](assets/vm_data_page_api_1.png)
+
+![vm_data_page_api_2](assets/vm_data_page_api_2.png)
+
+![vm_data_page_api_3](assets/vm_data_page_api_3.png)
+
+![vm_data_page_api_4](assets/vm_data_page_api_4.png)
+
+![allocate_vm_page API](assets/allocate_vm_page_api.png)
+
+![dellocate_vm_page API](assets/deallocate_vm_page_api.png)
+

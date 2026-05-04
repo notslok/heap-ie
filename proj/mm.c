@@ -30,7 +30,7 @@ mm_print_registered_page_families() {
     /* If there is/are allocated VM page - select them one by one for iteration */
     vm_page_for_families_t* vm_page_iterator = first_vm_page_for_families;
 
-    ITERATE_VM_PAGE_BEGIN(vm_page_iterator) {
+    ITERATE_VM_FAMILY_PAGES_BEGIN(vm_page_iterator) {
         
         /* Iterate over the page families inside current VM page */
         vm_page_family_t* vm_page_family_curr = NULL;
@@ -41,9 +41,9 @@ mm_print_registered_page_families() {
                     vm_page_family_curr->struct_name,
                     vm_page_family_curr->struct_size);
 
-        } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr)
+        } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr);
 
-    } ITERATE_VM_PAGE_END(vm_page_iterator)
+    } ITERATE_VM_FAMILY_PAGES_END(vm_page_iterator);
 }
 
 
@@ -63,7 +63,7 @@ lookup_page_family_by_name(char* struct_name) {
     /* If there is/are allocated VM page - select them one by one for iteration */
     vm_page_for_families_t* vm_page_iterator = first_vm_page_for_families;
 
-    ITERATE_VM_PAGE_BEGIN(vm_page_iterator) {
+    ITERATE_VM_FAMILY_PAGES_BEGIN(vm_page_iterator) {
         
         /* Iterate over the page families inside current VM page */
         vm_page_family_t* vm_page_family_curr = NULL;
@@ -79,9 +79,9 @@ lookup_page_family_by_name(char* struct_name) {
                 return vm_page_family_curr;
             }
 
-        } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr)
+        } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr);
 
-    } ITERATE_VM_PAGE_END(vm_page_iterator)
+    } ITERATE_VM_FAMILY_PAGES_END(vm_page_iterator);
 
     printf("[INFO] No family with name: %s found!\n", struct_name);
     return NULL;
@@ -212,4 +212,91 @@ mm_return_vm_page_to_kernel (void* vm_page, int units) {
     if(munmap(vm_page, units * SYSTEM_PAGE_SIZE)) { // returns 0 on success
         printf("Error: VM page de-allocation failed\n");
     }
+}
+
+/* Returns the size of Free Data block of an Empty VM Page */
+/* For Giant VM pages a unit of 2 or more is passed as arg */
+static inline uint32_t
+mm_max_page_allocatable_memory (int units){
+    return ((SYSTEM_PAGE_SIZE * units) -
+            offset_of(vm_page_t, page_memory)); // Equivalent to substracting the sizeof(vm_page_t) struct.
+}
+
+/* API returns MM_TRUE if VM_Page has no data block assigned to
+the application, else return MM_FALSE */
+vm_bool_t
+mm_is_vm_page_empty(vm_page_t* vm_page){
+    if(vm_page->block_meta_data.next_block == NULL &&
+       vm_page->block_meta_data.prev_block == NULL &&
+       vm_page->block_meta_data.is_free == MM_TRUE)
+        return MM_TRUE;
+    else    
+        return MM_FALSE;
+}
+
+
+
+/* API to allocate new data VM page for a family */
+vm_page_t*
+allocate_vm_page(vm_page_family_t* vm_page_family){
+    
+    // Get new VM Data Page from the kernel
+    vm_page_t* new_vm_data_page = (vm_page_t*)mm_get_new_vm_page_from_kernel(1);
+    
+    // Init the meta block value in the new VM data page
+    /*
+        new_vm_data_page->block_meta_data.is_free = MM_TRUE;
+        new_vm_data_page->block_meta_data.prev_block = NULL;
+        new_vm_data_page->block_meta_data.next_block = NULL;
+    */ 
+    // OR use macro:
+    MARK_VM_PAGE_EMPTY(new_vm_data_page);
+    new_vm_data_page->block_meta_data.offset = offset_of(vm_page_t, page_memory);
+    new_vm_data_page->block_meta_data.block_size = mm_max_page_allocatable_memory(1);
+    
+    new_vm_data_page->prev = NULL;
+    new_vm_data_page->next = NULL;
+
+    if(vm_page_family->first_page == NULL){
+        vm_page_family->first_page = new_vm_data_page; // i.e. its the very first allocated page for this process
+    }
+    else{
+        new_vm_data_page->next = vm_page_family->first_page;
+        vm_page_family->first_page->prev = new_vm_data_page;
+
+        vm_page_family->first_page = new_vm_data_page;
+    }
+
+    return new_vm_data_page;
+
+}
+
+
+/* API to deallocate and free( i.e. return back to kernel) an allocated empty VM data page */
+void
+mm_vm_page_delete_and_free(vm_page_t* vm_page){
+
+    // check if its first_page of a family
+    vm_page_family_t* vm_page_family = vm_page->pg_family;
+
+    // Scenario 1: The page being deleted is the head of Linked List.
+    if(vm_page_family->first_page == vm_page){
+        vm_page_family->first_page = vm_page->next;
+
+        // Detach the node to be deleted
+        if(vm_page->next)
+            vm_page->next->prev = NULL;
+        vm_page->next = NULL;
+        vm_page->prev = NULL;
+
+        mm_return_vm_page_to_kernel((void*) vm_page, 1);
+        return;
+    }
+
+    // Scenario 2: The page being deleted any other node apart from the head.
+    if(vm_page->next)
+        vm_page->next->prev = vm_page->prev;
+    vm_page->prev->next = vm_page->next;
+    mm_return_vm_page_to_kernel((void*) vm_page, 1); // cast is not necessary but clarifies the function's generic expectation
+    return;
 }
