@@ -417,3 +417,30 @@ typedef struct vm_page_family_ {
 
 ![dellocate_vm_page API](assets/deallocate_vm_page_api.png)
 
+
+***
+
+## Functionality 6: Free Data Block Management
+
+![Free Data Block Management](assets/free_data_blk_mgmt.png)
+
+- Objective of this functionality is that for a given family, which data VM page should be used to meet the
+**xmalloc()** request ? \
+
+- Can opt for policies like: *Best fit*, *Worst fit* or  *First fit*. Lets say, *Worst fit* policy is considered,
+then need to find the biggest free data block across all Data VM pages of a given page family.  \
+
+![free block tracking](assets/free_block_tracking.png)
+
+- To track the free data blocks in descending order, a new data memeber named *free_block_priority_list_head* needs, to be 
+introduced in the **page_family_t** struct. So that when free memory is requested by application using *xmalloc(1, foot_t)*
+it referes to the priority queue pointed by *free_block_priority_list_head*. \
+
+- From here the LMM refers to the free data block being pointed by the head of the priority queue, allocates the space there 
+and re-adjusts its reference entry in the priority queue. \
+
+- In the first draft version linked list is being used to represent the above priority queue, resulting in time complexity 
+of **O(n)** for a *xmalloc()* call. In subsequent version this has to be replaced with **max-heaps** which will bring
+down the time complexity to **O(log2(n))**. \
+
+
