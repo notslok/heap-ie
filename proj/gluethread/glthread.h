@@ -53,7 +53,7 @@ The macro performs a pointer subtraction based on memory offset:
     for(; glthreadptr!=NULL; glthreadptr = _glthread_ptr){      \
         _glthread_ptr = (glthreadptr)->right;      
 
-#define ITERATE_GLTHREAD_BEGIN(glthreadptrstart, glthreadptr)   \
+#define ITERATE_GLTHREAD_END(glthreadptrstart, glthreadptr)   \
     }}
 
 
