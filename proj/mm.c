@@ -58,7 +58,7 @@ mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family){
     glthread_t* glthreadptrstart = vm_page_family->free_block_priority_list_head;
     glthread_t* biggest_glthreadptr = NULL;
     glthread_t* glthreadptr = NULL;
-    
+
     ITERATE_GLTHREAD_BEGIN(glthreadptrstart, glthreadptr){
         if(!biggest_glthreadptr){
             biggest_glthreadptr = glthreadptr;
@@ -316,10 +316,11 @@ allocate_vm_page(vm_page_family_t* vm_page_family){
     MARK_VM_PAGE_EMPTY(new_vm_data_page);
     new_vm_data_page->block_meta_data.offset = offset_of(vm_page_t, page_memory);
     new_vm_data_page->block_meta_data.block_size = mm_max_page_allocatable_memory(1);
-    
+    // init priority_thread_glue member -> which is a node of a priority queue tracking free block's meta-block
+    init_glthread(new_vm_data_page->block_meta_data.priority_thread_glue);
     new_vm_data_page->prev = NULL;
     new_vm_data_page->next = NULL;
-
+    
     /*Init the glthread of new VM pages meta-block*/
     init_glthread(&new_vm_data_page->block_meta_data.priority_thread_glue);
     /* Set the back pointer of the data VM page to the respective family struct in family page */
