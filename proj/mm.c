@@ -55,7 +55,7 @@ mm_add_free_block_meta_data_to_free_block_list (
 static inline block_meta_data_t*
 mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family){
     
-    glthread_t* glthreadptrstart = vm_page_family->free_block_priority_list_head;
+    glthread_t* glthreadptrstart = &vm_page_family->free_block_priority_list_head;
     glthread_t* biggest_glthreadptr = NULL;
     glthread_t* glthreadptr = NULL;
 
@@ -71,7 +71,7 @@ mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family){
         }
     }ITERATE_GLTHREAD_END(glthreadptrstart, glthreadptr);
 
-    return biggest_glthreadptr;
+    return glthread_to_block_meta_data(biggest_glthreadptr);
 }
 
 
@@ -317,7 +317,7 @@ allocate_vm_page(vm_page_family_t* vm_page_family){
     new_vm_data_page->block_meta_data.offset = offset_of(vm_page_t, page_memory);
     new_vm_data_page->block_meta_data.block_size = mm_max_page_allocatable_memory(1);
     // init priority_thread_glue member -> which is a node of a priority queue tracking free block's meta-block
-    init_glthread(new_vm_data_page->block_meta_data.priority_thread_glue);
+    init_glthread(&new_vm_data_page->block_meta_data.priority_thread_glue);
     new_vm_data_page->prev = NULL;
     new_vm_data_page->next = NULL;
     
