@@ -371,6 +371,44 @@ mm_vm_page_delete_and_free(vm_page_t* vm_page){
 }
 
 
+static block_meta_data_t* 
+mm_allocate_free_data_block(vm_page_family_t* vm_page_family, uint32_t req_size) {
+    
+    vm_bool_t status = MM_FALSE;
+    vm_page_t* vm_page = NULL;
+    block_meta_data_t* worst_fit_block_meta_data = NULL;
+
+    worst_fit_block_meta_data = 
+            mm_get_biggest_free_block_page_family(vm_page_family);
+    
+    /* Case to add new VM page for family to satisfy the memory allocation request */
+    if(!worst_fit_block_meta_data ||
+       worst_fit_block_meta_data->block_size < req_size) {
+        
+        vm_page = allocate_vm_page(vm_page_family);
+
+        /* TODO: Allocates actual serviceable memory for user application from 
+        this newly assigned VM page to the family */
+        status = mm_split_free_data_block_for_allocation(vm_page_family, 
+                                                        &vm_page->block_meta_data, req_size);
+        if(status)
+            return &vm_page->block_meta_data;
+        // If one entire new VM cant satisfy THEN nothing from the freelist can... so return NULL
+        return NULL;
+    }
+
+    /* Case where the biggest free block CAN service the memory alloc request */
+    if(worst_fit_block_meta_data) {
+        status = mm_split_free_data_block_for_allocation(vm_page_family, 
+                                                        &worst_fit_block_meta_data, req_size);
+    }
+
+    if(status)
+        return worst_fit_block_meta_data;
+    
+    return NULL; // fallback for un-expected failures
+}
+
 /*
     The public API to be invoked by user application for
     Dynamic Memory allocation.
