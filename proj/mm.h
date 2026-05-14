@@ -3,6 +3,7 @@
 
 #include <stddef.h> /*for size_t*/
 #include <stdint.h>
+#include "gluethread/glthread.h"
 
 #define MM_MAX_STRUCT_NAME 32
 #define SIZEOF_META_DATA_BLOCK 28 // bytes
@@ -17,6 +18,7 @@ typedef struct vm_page_family_ {
     char struct_name[MM_MAX_STRUCT_NAME];
     uint32_t struct_size;
     struct vm_page_* first_page; // <--------> pointer to User defined data structure to represent a single unit of VM page
+    glthread_t free_block_priority_list_head; // pointer to the head of the free block tracking priority list
 
 } vm_page_family_t;
 
@@ -46,6 +48,9 @@ typedef struct block_meta_data_ {
 
     /* [4 bytes] Offset of this data block w.r.t the start of this VM page */
     uint32_t offset;
+
+    /* Node of a linked list */
+    glthread_t priority_thread_glue;
     
 } block_meta_data_t;
 
@@ -56,6 +61,10 @@ typedef struct vm_page_{
     block_meta_data_t block_meta_data;
     char page_memory[0]; /* first data block in the VM page */
 } vm_page_t;
+
+// Macro for inline fn defined in glthread lib for getting the address of the start of a node
+GLTHREAD_TO_STRUCT(glthread_to_block_meta_data, 
+    block_meta_data_t, priority_thread_glue, glthread_ptr);
 
 
 /* 
@@ -246,5 +255,9 @@ allocate_vm_page(vm_page_family_t* vm_page_family);
 /* API to deallocate and free( i.e. return back to kernel) an allocated empty VM data page */
 void
 mm_vm_page_delete_and_free(vm_page_t* vm_page);
+
+/* API to GET the biggest free data block from priority Queue of a given page family */
+static inline block_meta_data_t*
+mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family);
 
 #endif /* __MM_H__ */

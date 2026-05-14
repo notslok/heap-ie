@@ -15,6 +15,65 @@ mm_init() {
     SYSTEM_PAGE_SIZE = getpagesize();
 }
 
+/* Comparator for insertion of free block's metadata based on block-size */
+static int
+free_blocks_comparision_function(
+        void* _block_meta_data_1,
+        void* _block_meta_data_2){
+    block_meta_data_t* block_meta_data_1 = (block_meta_data_t*) _block_meta_data_1;
+    block_meta_data_t* block_meta_data_2 = (block_meta_data_t*) _block_meta_data_2;
+
+
+    if (block_meta_data_1->block_size > block_meta_data_2->block_size)
+        return -1;
+    else if (block_meta_data_1->block_size < block_meta_data_2->block_size)
+        return 1;
+
+    return 0; // equal block size
+}
+
+/* Insertion fn. for free data-block's meta-block into glthread based priority queue */
+static void
+mm_add_free_block_meta_data_to_free_block_list (
+    vm_page_family_t* vm_page_family,
+    block_meta_data_t* free_block) {
+    
+    /* Verify if the data-block represented by this meta-block is actually free */
+    assert(free_block->is_free == MM_TRUE);
+
+    glthread_priority_insert( &vm_page_family->free_block_priority_list_head,
+                              &free_block->priority_thread_glue,
+                              free_blocks_comparision_function,
+                              offset_of(block_meta_data_t, priority_thread_glue));
+}
+
+/* 
+    API to GET the biggest free data block from priority Queue of a given page family 
+    Because the current insertion policy keeps the biggest size at the head, it will end up deleting
+    the very first node everytime.
+*/
+static inline block_meta_data_t*
+mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family){
+    
+    glthread_t* glthreadptrstart = vm_page_family->free_block_priority_list_head;
+    glthread_t* biggest_glthreadptr = NULL;
+    glthread_t* glthreadptr = NULL;
+    
+    ITERATE_GLTHREAD_BEGIN(glthreadptrstart, glthreadptr){
+        if(!biggest_glthreadptr){
+            biggest_glthreadptr = glthreadptr;
+        }
+        else{
+            biggest_glthreadptr = 
+                ((glthread_to_block_meta_data(biggest_glthreadptr)->block_size) >= 
+                glthread_to_block_meta_data(glthreadptr)->block_size) 
+                ? biggest_glthreadptr : glthreadptr;
+        }
+    }ITERATE_GLTHREAD_END(glthreadptrstart, glthreadptr);
+
+    return biggest_glthreadptr;
+}
+
 
 /* Prints out all the registered family name and corresponding size */
 void
@@ -139,6 +198,8 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
             struct_name, MM_MAX_STRUCT_NAME);
 
         first_vm_page_for_families->vm_page_family[0].struct_size = struct_size;
+        first_vm_page_for_families->vm_page_family[0].first_page = NULL;
+        init_glthread(&first_vm_page_for_families->vm_page_family[0].free_block_priority_list_head);
 
         return;
     }
@@ -183,6 +244,8 @@ mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
         strncpy(vm_page_family_curr->struct_name,
                 struct_name, MM_MAX_STRUCT_NAME);
         vm_page_family_curr->struct_size = struct_size;
+        vm_page_family_curr->first_page = NULL;
+        init_glthread(&vm_page_family_curr->free_block_priority_list_head);
 
         return;
     // }
@@ -256,6 +319,11 @@ allocate_vm_page(vm_page_family_t* vm_page_family){
     
     new_vm_data_page->prev = NULL;
     new_vm_data_page->next = NULL;
+
+    /*Init the glthread of new VM pages meta-block*/
+    init_glthread(&new_vm_data_page->block_meta_data.priority_thread_glue);
+    /* Set the back pointer of the data VM page to the respective family struct in family page */
+    new_vm_data_page->pg_family = vm_page_family;
 
     if(vm_page_family->first_page == NULL){
         vm_page_family->first_page = new_vm_data_page; // i.e. its the very first allocated page for this process

@@ -444,3 +444,4 @@ of **O(n)** for a *xmalloc()* call. In subsequent version this has to be replace
 down the time complexity to **O(log2(n))**. \
 
 
+![Free block meta linked list data structure](assets/free_block_meta_list_data_struct.png)
