@@ -369,3 +369,69 @@ mm_vm_page_delete_and_free(vm_page_t* vm_page){
     mm_return_vm_page_to_kernel((void*) vm_page, 1); // cast is not necessary but clarifies the function's generic expectation
     return;
 }
+
+
+/*
+    The public API to be invoked by user application for
+    Dynamic Memory allocation.
+
+    xcalloc(obj, n) is equivalent to xmalloc(obj) but with memory init to 0 and for "n" units of objects
+*/
+void* // return type: void* bcz user application logic gets to decide the type of allocate memory
+xcalloc(char* struct_name, int units){
+    /*
+        Step 1:
+
+        Check if the struct family is registered or NOT(?)
+    */
+    vm_page_family_t* pg_family = lookup_page_family_by_name(struct_name);
+
+    if(!pg_family){
+        printf("ERROR: Structure `%s` not registered with the Memory Manager\n", struct_name);
+
+        return NULL;
+    }
+
+    /*
+        Step 2:
+
+        Check if the requested memory is TOO big w.r.t the allocatable region of VM Page 
+    */
+    if(units*pg_family->struct_size > mm_max_page_allocatable_memory(1)) {
+        printf("ERROR: Memory requested EXCEEDS page size.\n");
+
+        return NULL;
+    }
+
+    /* 
+        FINAL STEP: 
+        
+        If all sanity checks are passed,
+        Find page which can satisfy the request 
+        
+    */
+    block_meta_data_t* new_free_block_meta_data = NULL;
+    new_free_block_meta_data = mm_allocate_free_data_block(pg_family, 
+                                        units * pg_family->struct_size); // TODO
+
+    if(new_free_block_meta_data){
+
+        /*
+            -> FIRSTLY, point to the start of Data-block region by using pointer arithmetic
+               (new_free_block_meta_data + 1), it moves the pointer by (block_meta_data_t) units.
+            
+            -> SECONDLY, typecast to (char*) to deal at per-byte address level.
+
+            -> FINALLY, Initialize each byte of the data-block with 0, as expected from calloc() API and
+               RETURN the (void*) pointer to the data block to the user-application, in order for the user
+               application to have the final decision on the "TYPE" of the newly allocated memory region.
+        */
+        memset((char*)(new_free_block_meta_data + 1), 0, 
+                    new_free_block_meta_data->block_size);
+
+        return (void*)(new_free_block_meta_data + 1);
+    }
+
+    /* FALLBACK for unexpected failures in allocation */   
+    return NULL;
+}

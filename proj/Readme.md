@@ -445,3 +445,23 @@ down the time complexity to **O(log2(n))**. \
 
 
 ![Free block meta linked list data structure](assets/free_block_meta_list_data_struct.png)
+
+
+***
+
+## Functionality 7: Xcalloc, Xmalloc() and Xfree() Interfacing APIs
+
+![xmalloc, xcalloc and xfree API](assets/xmalloc_xcalloc_xfree_api.png)
+
+- This functionality completes the first version of custom linux memory manager.    \
+
+- (TODO) Handling memory (de)allocation for objects having size greater than the system's VM page size. \
+
+- This functionality implements the User APIs responsible for (De)allocation of objects as requested by the running application. \
+
+![User API Reference Diagram](assets/user_api_ref_diagram.png)
+
+
+![Memory Allocation Algorithm Flowchart](assets/memory_alloc_algo.png)
+
+**NOTE:** xmalloc/calloc have *mm_allocate_free_data_bloc()* and *mm_split_free_data_block_for_allocation()* as dependencies. \
