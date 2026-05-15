@@ -6,9 +6,15 @@
 void*
 xcalloc(char* struct_name, int units);
 
+void
+xfree(void *app_ptr);
+
 #define XCALLOC(units, struct_name) \
     (xcalloc(#struct_name, units))      // the # operator is the stringizing operator in the C preprocessor.
                                         // It converts the macro argument into a string literal.
+
+#define XFREE(ptr)  \
+   xfree(ptr)
 
 /* LMM Initialization Function */
 void

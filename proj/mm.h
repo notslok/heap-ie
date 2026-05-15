@@ -153,10 +153,7 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 // Returns pointer pointing to the start of preveious meta block's
 // starting i.e. Towards lower address.
 #define PREV_META_BLOCK(block_meta_data_ptr)                \
-        if(!block_meta_data_ptr->prev_block){               \
-            printf("[INFO] Pointer already pointing to the first meta block in the VM page!\n");    \
-        }                                                   \
-        (block_meta_data_ptr->prev_block;)                  \
+        (block_meta_data_ptr->prev_block)                   
 
 // Macro to take the responsibility to update all P and N pointers of all meta blocks that needs an update.
 // first argument is pointer to meta block of allocated data block and 2nd argument is pointer to Meta block 

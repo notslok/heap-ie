@@ -23,18 +23,17 @@ main(int argc, char** argv) {
     mm_print_registered_page_families();
     MM_REG_STRUCT(emp_t);
     MM_REG_STRUCT(student_t);
-    mm_print_registered_page_families();
-
+    
     // memory alloc reuests w.r.t emp_t and student_t objects
-    XCALLOC(1, emp_t);
-    XCALLOC(1, emp_t);
-    XCALLOC(1, emp_t);
-
-    XCALLOC(1, student_t);
-    XCALLOC(1, student_t);
-
+    emp_t *emp1 = xcalloc("emp_t", 1);
+    emp_t *emp2 = xcalloc("emp_t", 1);
+    student_t *stud1 = xcalloc("student_t", 1);
+    student_t *stud2 = xcalloc("student_t", 1);
+    student_t *stud3 = xcalloc("student_t", 1);
+    
+    mm_print_registered_page_families();
     scanf("\n");
-    mm_print_memory_usage(0);   // TODO
+    // mm_print_memory_usage(0);   // TODO
     // mm_print_block_usage();     // TODO
 
     // mm_print_registered_page_families();
@@ -43,7 +42,14 @@ main(int argc, char** argv) {
     // lookup_page_family_by_name("emp_t");
     // lookup_page_family_by_name("student_t");
     // lookup_page_family_by_name("emptyyy");
+
+    XFREE(emp1);
+    XFREE(emp2);
     
+    XFREE(stud1);
+    XFREE(stud2);
+    XFREE(stud3);
+
     return 0;
     
 }

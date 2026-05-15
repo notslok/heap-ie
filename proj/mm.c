@@ -544,45 +544,83 @@ xcalloc(char* struct_name, int units){
     return NULL;
 }
 
-/* Memory state snapshot APIs */
-void 
-mm_print_memory_usage(char* struct_name){
+static int 
+mm_get_hard_internal_memory_frag_size(
+            block_meta_data_t *first,
+            block_meta_data_t *second){
 
-    printf("\n\nPAGE SIZE = %ld Bytes\n", SYSTEM_PAGE_SIZE);
+    block_meta_data_t *next_block = NEXT_META_BLOCK_BY_SIZE(first);  
+    return (int)((unsigned long)second - (unsigned long)(next_block));
+}
+
+static block_meta_data_t*
+mm_free_blocks(block_meta_data_t* to_be_free_block) {
+    block_meta_data_t* return_block = NULL;
+
+    assert(to_be_free_block->is_free == MM_FALSE);
+
+    vm_page_t* hosting_page = MM_GET_PAGE_FROM_META_BLOCK(to_be_free_block);
+
+    vm_page_family_t* vm_page_family = hosting_page->pg_family;
+
+    return_block = to_be_free_block;
+
+    to_be_free_block->is_free = MM_TRUE;
     
-    // CASE 1: Dump memory state info related to all the registered families
-    if(!struct_name){ 
+    block_meta_data_t* next_block = NEXT_META_BLOCK_BY_SIZE(to_be_free_block);
 
-        vm_page_for_families_t* vm_page_iterator = first_vm_page_for_families;
-
-        ITERATE_VM_FAMILY_PAGES_BEGIN(vm_page_iterator) {
-            
-            /* Iterate over the page families inside current VM page */
-            vm_page_family_t* vm_page_family_curr = NULL;
-
-            ITERATE_PAGE_FAMILIES_BEGIN(vm_page_iterator, vm_page_family_curr) {
-
-                printf("vm_page_family: %s, struct_size = %u\n", 
-                        vm_page_family_curr->struct_name,
-                        vm_page_family_curr->struct_size);
-                // printf("\t\tnext = %p, prev = %p\n", (void*)vm_page_iterator->next,
-                //                                      (void*)vm_page_iterator->prev); //??
-                printf("\t\tvm_page_family: %s\n", 
-                        vm_page_family_curr->struct_name);
-                
-                printf("\n\n");
-            } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr);
-
-        } ITERATE_VM_FAMILY_PAGES_END(vm_page_iterator);
-
-
+    /* Handling Hard Internal Fragmentation Scenarios */
+    if(next_block){
+        /*
+            Case 1:
+                Data block to be freed is not the last/uppermost meta block in a VM data page
+        */
+        to_be_free_block->block_size += 
+                mm_get_hard_internal_memory_frag_size(to_be_free_block, next_block);
     }
-    // CASE 2: Dump memory state info related to family name passed as struct_name
     else{
-
+        /*
+            Case 2:
+                Data block to be free is at the upper page boundary.
+        */
+        char* end_address_of_vm_page = (char*)((char*)hosting_page + SYSTEM_PAGE_SIZE);
+        char* end_address_of_free_data_block = 
+                (char*)(to_be_free_block + 1) + to_be_free_block->block_size;
+        int internal_mem_fragmentation = (int)((unsigned long)end_address_of_vm_page - 
+                (unsigned long)end_address_of_free_data_block);
+        to_be_free_block->block_size += internal_mem_fragmentation;
     }
 
+    /* Bock Merging Phase */
+    if(next_block && next_block->is_free == MM_TRUE){
+        /*Merge two blocks*/
+        mm_union_free_blocks(to_be_free_block, next_block);
+        return_block = to_be_free_block;
+    }
+    
+    // Now checking if the previous block is free, too
+    block_meta_data_t* prev_block = PREV_META_BLOCK(to_be_free_block);
+
+    if(prev_block && prev_block->is_free){
+        /* Prev block is eligible for merging */
+        mm_union_free_blocks(prev_block, to_be_free_block);
+        return_block = prev_block;
+    }
+
+    if(mm_is_vm_page_empty(hosting_page)){
+        mm_vm_page_delete_and_free(hosting_page);
+        return NULL;
+    }
+
+    mm_add_free_block_meta_data_to_free_block_list(hosting_page->pg_family, return_block);
+
+    return return_block;
 }
 
 void
-mm_print_block_usage();     // TODO
+xfree(void* app_data){
+    block_meta_data_t* block_meta_data = 
+        (block_meta_data_t*)((char*)app_data - sizeof(block_meta_data_t));
+    assert(block_meta_data->is_free == MM_FALSE);
+    mm_free_blocks(block_meta_data);
+}
