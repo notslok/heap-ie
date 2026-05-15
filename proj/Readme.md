@@ -16,6 +16,9 @@ userspace process on need-basis. \
 
 ![alt text](assets/xmalloc_arch.png)
 
+
+***
+
 ## Functionality 1: Virtual Memory Page Allocation/De-allocation
 
 - Size of VM page is ~4KB to 8KB on most modern systems, we usually use library calls like malloc/calloc to allocate dynamic memory in our programs. \
@@ -80,6 +83,8 @@ mm_get_new_vm_page_from_kernel (int units);
 static void*
 mm_return_vm_page_to_kernel (void *vm_page, int units); 
 ```
+
+***
 
 ## Functionality 2: Page Family Registration
 
@@ -157,7 +162,7 @@ typedef struct vm_page_families_ {
 
 ```
 
-### Page Family Instantiati on
+### Page Family Instantiation
 
 -  These family of APIs deal with how application process is going to report page family info to the LMM? \
 
@@ -204,3 +209,296 @@ void mm_instantiate_new_page_family (char* struct_name, uint32_t struct_size) {
 
 - **uapi_mm.h** will provide publicly exposed structs and API of the custom LMM through header file. \
 - uapi_mm.h is an interface betweenLMM lib and application. It provides public APIs like mm_init() and macros like MM_REG_STRUCT() etc. \
+
+
+***
+
+## Functionality 3: Meta and Data Blocks
+
+- Meta blocks store the metadata of its corresponding data-blocks and maintain a chain of free and allocated blocks. \
+
+- Data block is the chunk of VM page which is given to the user application for use, these applications aren't aware of corresponding Meta blocks. \
+
+- A block whether allocated or freed is guarded by its Meta block. \
+
+![Meta and Data Block layout](assets/meta_data_blocks.png)
+
+- **The LMM will be dealing with two classes of VM pages now, one dealing with storage of struct/family registration data and other dealing with the sorage of the userspace app's dynamically allocated concrete data.**
+
+
+### Meta and Data Block structure
+
+![Data VM page layout](assets/data_vm_page_layout.png)
+
+![meta block offset chart](assets/meta_block_offset_chart.png)
+
+```
+typedef struct block_meta_data_ {
+
+    /* [4 bytes] Is the corresponding Data block Free or Allocated? */
+    vm_bool_t is_free;
+    
+    /* [4 bytes] Size of the corresponding Data Block */
+    uint32_t block_size;
+
+    /* [8 bytes] ptr to the next meta block - downward in Data VM page */
+    struct block_meta_data_* prev_block;
+
+    /* [8 bytes] ptr to the next meta block - upward in Data VM page */
+    struct block_meta_data_* next_block;
+
+    /* [4 bytes] Offset of this data block w.r.t the start of this VM page */
+    uint32_t offset;
+    
+} block_meta_data_t;    // Total size of meta_block_data = 4+4+8+8+4 = [28 bytes]
+```
+
+***
+
+## Functionality 4: Block Splitting and Merging
+
+![Block Splitting](assets/block_splitting.png)
+
+- For every malloc call made, a block is splitted into allocated block and remaining area is left as a smaller "free" block. \
+
+- If the VM page don't have free block to stisfy the malloc request, a new VM page is requested from the kernel and then split within it is performed. \
+
+- In short, "malloc()" results in block split AND "free()" results in block merge. \
+
+![Pointer addjustment on Block Split](assets/block_split_ptr_adjustment.png)
+
+![Block Merging](assets/block_merge.png)
+
+![Block_merge_2](assets/block_merge_2.png)
+
+
+***
+
+### Assignment 3
+
+![Assignment 3](assets/assignment_3.png)
+
+Q1) What is the address of highest Byte in the VM page ? \
+>> (2000 + 4096) - 1 = 6,095 --> H.A limit
+
+Q2) Find the addresses of all P(rev) & N(ext) pointers for all meta blocks. \
+
+```
+        [6095] ---------> Higher Address
+            ^
+            |
+            v
+    (prev= 2048, next= NULL) ---------------> [MB3]
+            ^
+            |
+            v
+    (prev= 2000, next= 2476) ---------------> [MB2]
+            ^
+            |
+            v
+    (prev= NULL, next= 2048) ---------------> [MB1]
+        [2000] ---------> Lower Address
+```
+
+Q3) Application invoke xmalloc(foo_t, 2) , where sizeof(foo_t) is 20B. Let the block MB2 is chosen for Memory allocation. Find the new addresses of all P & N pointers for all meta blocks in VM page after allocation. Assume MB2 is split into MB21 (higher residual free block in Memory) and MB22 (lower allocated block in Memory). \
+
+```
+        [6095] ---------> Higher Address
+            ^
+            |
+            v
+    (prev= 2116*, next= NULL) ---------------> [MB3]
+            ^
+            |
+            v
+    (prev= 2068*, next= 2476*) ---------------> [MB21]** ----> [EMPTY]
+            ^
+            |
+            v
+    (prev= 2000*, next= 2116*) -----------> [MB22]** ---> [2*20 bytes data block]
+            ^
+            |
+            v
+    (prev= NULL, next= 2048) ---------------> [MB1]
+        [2000] ---------> Lower Address
+```
+
+***
+
+## Functionality 5: Virtual Memory Page Management
+
+![Virtual memory Management](assets/Virtual_memory_Management.png)
+
+- "How will the custom LMM - Manage Virtual memory Pages ?" \
+- When LMM needs to perform following (possible)actions by interacting with kernel: \
+
+```
+-> Allocation of Data block 
+-> Deallocation od Data block
+-> If current page is completely free, return back to kernel (munmap)
+-> If current page is completely exhausted, allocate new VM page (mmap)
+-> Maintain and arrange collection of VM pages in use.
+-> Collect certain statistics
+```
+
+- A data structure is needed in order to facilitate LMM with ability to manipulate/organize Data VM pages. \
+
+- For the same purpose, a data structure like **vm_page_t** is needed. \
+
+-  **First change** - addition of **first_page** pointer in **vm_page_for_families_t**: \
+
+![vm_page_family_t modification](assets/vm_page_family_t_modification.png)
+
+**first_page** points to the latest Data VM page daded to the VM page linked list. \
+
+```
+typedef struct vm_page_family_ {
+
+    char struct_name[MM_MAX_STRUCT_NAME];
+    uint32_t struct_size;
+    vm_page_t* first_page; // <--------> pointer to User defined data structure to represent a single unit of VM page
+
+} vm_page_family_t;
+```
+
+- **Second change** - addition of new data struct **vm_page_t** to represent a VM page itself: \
+
+![vm_page_t struct](assets/vm_page_t_struct.png)
+
+```
+// Data structure to organize allocated VM pages into doubly linked list
+    typedef struct vm_page_{
+
+        /* pointer to the next data vm page */
+        struct vm_page_* next;
+        
+        /* pointer to the previous data vm page */
+        struct vm_page_* prev;
+
+        /* back pointer to page family entry in page families vm page */
+        struct vm_page_family_* pg_family;
+    } vm_page_t;
+```
+
+![New mental picure of VM page for family and data](assets/vm_page_mental_picture.png)
+
+```
+    // Data structure to organize allocated VM pages into doubly linked list
+    typedef struct vm_page_{
+
+        /* pointer to the next data vm page */
+        struct vm_page_* next;
+        
+        /* pointer to the previous data vm page */
+        struct vm_page_* prev;
+
+        /* back pointer to page family entry in page families vm page */
+        struct vm_page_family_* pg_family;
+
+
+        /**/
+        block_meta_data_t block_meta_data;
+        char page_memory[0]; /* First Data Block in VM page */
+    } vm_page_t;
+```
+
+
+### APIs for VM Data Page Management:
+
+![vm_data_page_api_1](assets/vm_data_page_api_1.png)
+
+![vm_data_page_api_2](assets/vm_data_page_api_2.png)
+
+![vm_data_page_api_3](assets/vm_data_page_api_3.png)
+
+![vm_data_page_api_4](assets/vm_data_page_api_4.png)
+
+![allocate_vm_page API](assets/allocate_vm_page_api.png)
+
+![dellocate_vm_page API](assets/deallocate_vm_page_api.png)
+
+
+***
+
+## Functionality 6: Free Data Block Management
+
+![Free Data Block Management](assets/free_data_blk_mgmt.png)
+
+- Objective of this functionality is that for a given family, which data VM page should be used to meet the
+**xmalloc()** request ? \
+
+- Can opt for policies like: *Best fit*, *Worst fit* or  *First fit*. Lets say, *Worst fit* policy is considered,
+then need to find the biggest free data block across all Data VM pages of a given page family.  \
+
+![free block tracking](assets/free_block_tracking.png)
+
+- To track the free data blocks in descending order, a new data memeber named *free_block_priority_list_head* needs, to be 
+introduced in the **page_family_t** struct. So that when free memory is requested by application using *xmalloc(1, foot_t)*
+it referes to the priority queue pointed by *free_block_priority_list_head*. \
+
+- From here the LMM refers to the free data block being pointed by the head of the priority queue, allocates the space there 
+and re-adjusts its reference entry in the priority queue. \
+
+- In the first draft version linked list is being used to represent the above priority queue, resulting in time complexity 
+of **O(n)** for a *xmalloc()* call. In subsequent version this has to be replaced with **max-heaps** which will bring
+down the time complexity to **O(log2(n))**. \
+
+
+![Free block meta linked list data structure](assets/free_block_meta_list_data_struct.png)
+
+
+***
+
+## Functionality 7: Xcalloc, Xmalloc() and Xfree() Interfacing APIs
+
+![xmalloc, xcalloc and xfree API](assets/xmalloc_xcalloc_xfree_api.png)
+
+- This functionality completes the first version of custom linux memory manager.    \
+
+- (TODO) Handling memory (de)allocation for objects having size greater than the system's VM page size. \
+
+- This functionality implements the User APIs responsible for (De)allocation of objects as requested by the running application. \
+
+![User API Reference Diagram](assets/user_api_ref_diagram.png)
+
+
+![Memory Allocation Algorithm Flowchart](assets/memory_alloc_algo.png)
+
+**NOTE:** xmalloc/calloc have *mm_allocate_free_data_bloc()* and *mm_split_free_data_block_for_allocation()* as dependencies. \
+
+
+### mm_allocate_free_data_block (vm_page_family_t*, uint32_t requested_size)
+
+- Objective of this internal API is to provide pointer to the meta-block of a free data-block, that can satisfy memory allocation request for a specific data-type. \
+
+- Hence, it takes two params i.e. vm_page_family_t* AND uint32_t size (in bytes) \
+
+- First it tries to fetch the worst-fit free data block from the free list, and as per the curresnt free-list insertion policy, its found at the head it self. \
+
+- If worst-fit is enough to satisfy the user application's memory requrements send the block to be processed by  *mm_split_free_data_block_for_allocation()* routine. \
+
+- BUT If, free-list is empty or worst-fit data block doesn't have enough space, it will request new VM page from the kernel and, even if thats not enough then it simply returns NULL, signalling allocation failure. \
+
+
+### mm_split_free_data_block_for_allocation (vm_page_family_t*, block_meta_data_t*, uint32_t requested_size)
+
+![Block splitting scenarios](assets/Block_splitting_scenarios.png)
+
+- Allocates memory from a free block by splitting it based on the requested size. \
+
+- Validates that the target block is free and large enough for allocation. \
+
+- Marks the selected block as occupied and removes it from the free block priority list. \
+
+- Supports three allocation scenarios: exact fit, soft fragmentation split, and hard fragmentation. \
+
+![soft/hard internal fragmentation conditions](assets/internal_frag_cond.png)
+
+- Creates and initializes a new metadata block when the remaining space can hold another free block. \
+
+- Updates block linkages and reinserts newly created free blocks into the free block management list. \
+
+
+***
+
+## Functionality 8: Tests
