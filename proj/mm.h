@@ -256,8 +256,30 @@ allocate_vm_page(vm_page_family_t* vm_page_family);
 void
 mm_vm_page_delete_and_free(vm_page_t* vm_page);
 
-/* API to GET the biggest free data block from priority Queue of a given page family */
-static inline block_meta_data_t*
-mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family);
+/* 
+    API to GET the biggest free data block from priority Queue of a given page family 
+    Because the current insertion policy keeps the biggest size at the head, it will end up deleting
+    the very first node everytime.
+*/
+static inline block_meta_data_t *
+mm_get_biggest_free_block_page_family(
+        vm_page_family_t *vm_page_family){
+
+    glthread_t *biggest_free_block_glue = 
+        vm_page_family->free_block_priority_list_head.right;
+    
+    if(biggest_free_block_glue)
+        return glthread_to_block_meta_data(biggest_free_block_glue);
+
+    return NULL;
+}
+
+
+/* Tests */
+void 
+mm_print_memory_usage(char* struct_name);   // TODO
+
+void
+mm_print_block_usage();     // TODO
 
 #endif /* __MM_H__ */

@@ -47,33 +47,6 @@ mm_add_free_block_meta_data_to_free_block_list (
                               offset_of(block_meta_data_t, priority_thread_glue));
 }
 
-/* 
-    API to GET the biggest free data block from priority Queue of a given page family 
-    Because the current insertion policy keeps the biggest size at the head, it will end up deleting
-    the very first node everytime.
-*/
-static inline block_meta_data_t*
-mm_get_biggest_free_block_page_family(vm_page_family_t* vm_page_family){
-    
-    glthread_t* glthreadptrstart = &vm_page_family->free_block_priority_list_head;
-    glthread_t* biggest_glthreadptr = NULL;
-    glthread_t* glthreadptr = NULL;
-
-    ITERATE_GLTHREAD_BEGIN(glthreadptrstart, glthreadptr){
-        if(!biggest_glthreadptr){
-            biggest_glthreadptr = glthreadptr;
-        }
-        else{
-            biggest_glthreadptr = 
-                ((glthread_to_block_meta_data(biggest_glthreadptr)->block_size) >= 
-                glthread_to_block_meta_data(glthreadptr)->block_size) 
-                ? biggest_glthreadptr : glthreadptr;
-        }
-    }ITERATE_GLTHREAD_END(glthreadptrstart, glthreadptr);
-
-    return glthread_to_block_meta_data(biggest_glthreadptr);
-}
-
 
 /* Prints out all the registered family name and corresponding size */
 void
@@ -570,3 +543,46 @@ xcalloc(char* struct_name, int units){
     /* FALLBACK for unexpected failures in allocation */   
     return NULL;
 }
+
+/* Memory state snapshot APIs */
+void 
+mm_print_memory_usage(char* struct_name){
+
+    printf("\n\nPAGE SIZE = %ld Bytes\n", SYSTEM_PAGE_SIZE);
+    
+    // CASE 1: Dump memory state info related to all the registered families
+    if(!struct_name){ 
+
+        vm_page_for_families_t* vm_page_iterator = first_vm_page_for_families;
+
+        ITERATE_VM_FAMILY_PAGES_BEGIN(vm_page_iterator) {
+            
+            /* Iterate over the page families inside current VM page */
+            vm_page_family_t* vm_page_family_curr = NULL;
+
+            ITERATE_PAGE_FAMILIES_BEGIN(vm_page_iterator, vm_page_family_curr) {
+
+                printf("vm_page_family: %s, struct_size = %u\n", 
+                        vm_page_family_curr->struct_name,
+                        vm_page_family_curr->struct_size);
+                // printf("\t\tnext = %p, prev = %p\n", (void*)vm_page_iterator->next,
+                //                                      (void*)vm_page_iterator->prev); //??
+                printf("\t\tvm_page_family: %s\n", 
+                        vm_page_family_curr->struct_name);
+                
+                printf("\n\n");
+            } ITERATE_PAGE_FAMILIES_END(vm_page_iterator, vm_page_family_curr);
+
+        } ITERATE_VM_FAMILY_PAGES_END(vm_page_iterator);
+
+
+    }
+    // CASE 2: Dump memory state info related to family name passed as struct_name
+    else{
+
+    }
+
+}
+
+void
+mm_print_block_usage();     // TODO
