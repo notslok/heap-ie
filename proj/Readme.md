@@ -465,3 +465,39 @@ down the time complexity to **O(log2(n))**. \
 ![Memory Allocation Algorithm Flowchart](assets/memory_alloc_algo.png)
 
 **NOTE:** xmalloc/calloc have *mm_allocate_free_data_bloc()* and *mm_split_free_data_block_for_allocation()* as dependencies. \
+
+
+### mm_allocate_free_data_block (vm_page_family_t*, uint32_t requested_size)
+
+- Objective of this internal API is to provide pointer to the meta-block of a free data-block, that can satisfy memory allocation request for a specific data-type. \
+
+- Hence, it takes two params i.e. vm_page_family_t* AND uint32_t size (in bytes) \
+
+- First it tries to fetch the worst-fit free data block from the free list, and as per the curresnt free-list insertion policy, its found at the head it self. \
+
+- If worst-fit is enough to satisfy the user application's memory requrements send the block to be processed by  *mm_split_free_data_block_for_allocation()* routine. \
+
+- BUT If, free-list is empty or worst-fit data block doesn't have enough space, it will request new VM page from the kernel and, even if thats not enough then it simply returns NULL, signalling allocation failure. \
+
+
+### mm_split_free_data_block_for_allocation (vm_page_family_t*, block_meta_data_t*, uint32_t requested_size)
+
+![Block splitting scenarios](assets/Block_splitting_scenarios.png)
+
+- Allocates memory from a free block by splitting it based on the requested size. \
+
+- Validates that the target block is free and large enough for allocation. \
+
+- Marks the selected block as occupied and removes it from the free block priority list. \
+
+- Supports three allocation scenarios: exact fit, soft fragmentation split, and hard fragmentation. \
+
+![soft/hard internal fragmentation conditions](assets/internal_frag_cond.png)
+
+- Creates and initializes a new metadata block when the remaining space can hold another free block. \
+
+- Updates block linkages and reinserts newly created free blocks into the free block management list. \
+
+
+***
+

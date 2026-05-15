@@ -370,6 +370,103 @@ mm_vm_page_delete_and_free(vm_page_t* vm_page){
     return;
 }
 
+/*
+    Function to mark block_meta_data as being allocated for
+    'size' bytes of application data. Return TRUE, if 
+    block allocation succeeds.
+*/
+static vm_bool_t
+mm_split_free_data_block_for_allocation(vm_page_family_t* vm_page_family,
+                                        block_meta_data_t* block_meta_data,
+                                        uint32_t size) {
+    /* Verify if the data-block represented by this meta-block is actually free */
+    assert(block_meta_data->is_free == MM_TRUE);
+
+    block_meta_data_t* next_block_meta_data = NULL;
+
+    // block size too small to service the request, return MM_FALSE
+    if(block_meta_data->block_size < size){
+        return MM_FALSE;
+    }
+
+    // calculating remaining size to check for soft/hard Internal Fragmentaion
+    uint32_t remaining_size = block_meta_data->block_size - size;
+
+    block_meta_data->is_free = MM_FALSE; // mark the block as occupied
+    block_meta_data->block_size = size;
+    remove_glthread(&block_meta_data->priority_thread_glue); // remove the block from the free list
+    /* block_meta_data->offset = <remains same as the its not a newly created/inserted meta-block in the VM page> */
+
+    /* 
+        CASE 1: 
+        NO SPLIT - requested memory size matches the free data block size 
+
+        So no linkage adjustment and splitting required, simply return MM_TRUE status
+    */
+    if(remaining_size == 0)
+        return MM_TRUE;
+
+    /*
+        CASE 2:
+        PARTIAL SPLIT - Soft Internal Fragmentation
+
+        Free block after split is guraded by a meta-block BUT is too small to be further split
+        as it cant even hold the meta block, post split
+    */    
+    else if(sizeof(block_meta_data_t) < remaining_size &&
+            remaining_size < sizeof(block_meta_data_t) + vm_page_family->struct_size){
+        /* Link and init new Meta Block */
+        next_block_meta_data = NEXT_META_BLOCK_BY_SIZE(block_meta_data);
+        next_block_meta_data->is_free = MM_TRUE;
+        next_block_meta_data->block_size = remaining_size - sizeof(block_meta_data_t);
+        next_block_meta_data->offset = block_meta_data->offset 
+                                        + sizeof(block_meta_data_t)
+                                        + block_meta_data->block_size;
+
+        // append the new free-data-block's meta-data to free list priority queue
+        init_glthread(&next_block_meta_data->priority_thread_glue);
+        mm_add_free_block_meta_data_to_free_block_list(vm_page_family, next_block_meta_data);
+
+        // adjust the prev and next linkages of surrounding nodes in the vm page
+        mm_bind_blocks_for_allocation(block_meta_data, next_block_meta_data);
+    }
+
+    /*
+        CASE 3:
+        PARTIAL SPLIT - Hard Internal Fragmentation
+
+        Free block after split is NOT guraded by a meta-block as its too small to accomodate
+        meta-block.
+    */
+    else if(remaining_size < sizeof(block_meta_data_t)) {
+        /* No Action Required, as all the linkages b/w blocks are correctly done */
+    }
+    
+    /*
+        CASE 4:
+        FULL SPLIT - New Meta Block is created
+        
+        Same as Soft Internal fragmentation BIUT in this case the free block obtaned after split
+        can be used in future for memory allocation.
+    */
+    else {
+        /* Link and init new Meta Block */
+        next_block_meta_data = NEXT_META_BLOCK_BY_SIZE(block_meta_data);
+        next_block_meta_data->is_free = MM_TRUE;
+        next_block_meta_data->block_size = remaining_size - sizeof(block_meta_data_t);
+        next_block_meta_data->offset = block_meta_data->offset 
+                                        + sizeof(block_meta_data_t)
+                                        + block_meta_data->block_size;
+
+        // append the new free-data-block's meta-data to free list priority queue
+        init_glthread(&next_block_meta_data->priority_thread_glue);
+        mm_add_free_block_meta_data_to_free_block_list(vm_page_family, next_block_meta_data);
+
+        // adjust the prev and next linkages of surrounding nodes in the vm page
+        mm_bind_blocks_for_allocation(block_meta_data, next_block_meta_data);
+    }
+}
+
 
 static block_meta_data_t* 
 mm_allocate_free_data_block(vm_page_family_t* vm_page_family, uint32_t req_size) {

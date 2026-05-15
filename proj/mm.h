@@ -105,10 +105,10 @@ stored in a VM page (vm_page_for_families_t) in bottom-up fashion
 Looping macro to iterate over nodes of vm_page_for_families_t linked list in allocated VM Pages
 */
 #define ITERATE_VM_FAMILY_PAGES_BEGIN(vm_page_iterator)            \
-{                                                          \
-    for(;                                                  \
-        vm_page_iterator!=NULL;                            \
-        vm_page_iterator = vm_page_iterator->next){        \
+{                                                                  \
+    for(;                                                          \
+        vm_page_iterator!=NULL;                                    \
+        vm_page_iterator = vm_page_iterator->next){                \
 
 #define ITERATE_VM_FAMILY_PAGES_END(vm_page_iterator)}}            \
 
@@ -118,8 +118,8 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 */
 
 // Generic macro to obtain offset of any field in a structure
-#define offset_of(container_structure, field_name)          \
-        ((size_t)&(((container_structure*)NULL)->field_name)) \
+#define offset_of(container_structure, field_name)              \
+        ((size_t)&(((container_structure*)NULL)->field_name))   \
 
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111[[!!!USE OFFSET FIELD!!!]]
@@ -130,14 +130,14 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 
 // Returns pointer pointing to the start of next meta block's
 // starting i.e. Towards higher address. 
-#define NEXT_META_BLOCK(block_meta_data_ptr)                \
-        if(!block_meta_data_ptr->next_block){               \
+#define NEXT_META_BLOCK(block_meta_data_ptr)                                                        \
+        if(!block_meta_data_ptr->next_block){                                                       \
             printf("[INFO] Pointer already pointing to the last meta block in the VM page!\n");     \
-        }                                                   \
-        (block_meta_data_ptr->next_block;)                  \
+        }                                                                                           \
+        (block_meta_data_ptr->next_block;)                                                          \
 
         
-// Returns pointer pointing to the start of next meta block's
+// Returns pointer pointing to the start of next NEW meta block's
 // starting i.e. Towards higher address. BUT this macro leverages
 // the block_size attribute AND NOT the _next_block pointer
 /* STEPS: */
