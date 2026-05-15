@@ -497,7 +497,7 @@ mm_allocate_free_data_block(vm_page_family_t* vm_page_family, uint32_t req_size)
     /* Case where the biggest free block CAN service the memory alloc request */
     if(worst_fit_block_meta_data) {
         status = mm_split_free_data_block_for_allocation(vm_page_family, 
-                                                        &worst_fit_block_meta_data, req_size);
+                                                        worst_fit_block_meta_data, req_size);
     }
 
     if(status)

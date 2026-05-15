@@ -146,7 +146,7 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 // by block_meta_data_ptr->block_size bytes to get to the end of data block 
 // then typecast back to block_meta_data_ptr*
 #define NEXT_META_BLOCK_BY_SIZE(block_meta_data_ptr)                    \
-        (block_meta_data_ptr*)((char*)(block_meta_data_ptr+1)           \
+        (block_meta_data_t*)(((char*)(block_meta_data_ptr+1))         \
         + block_meta_data_ptr->block_size)                              \
          
 
@@ -169,10 +169,10 @@ Looping macro to iterate over nodes of vm_page_for_families_t linked list in all
 #define mm_bind_blocks_for_allocation(allocated_meta_block, free_meta_block)    \
         free_meta_block->next_block = allocated_meta_block->next_block;         \
         if(allocated_meta_block->next_block != NULL) {                          \
-            allocated_meta_block->next_block->prev_block-> free_meta_block;     \
+            allocated_meta_block->next_block->prev_block = free_meta_block;     \
         }                                                                       \
         free_meta_block->prev_block = allocated_meta_block;                     \
-        allocated_meta_block->next = free_meta_block;                           \
+        allocated_meta_block->next_block = free_meta_block;                     \
 
 
 // MACRO "for loop" which iterates over all meta blocks present in a VM page, 
